@@ -15,6 +15,12 @@ build.
 
 ## Where the build configuration lives
 
-The PyInstaller build configuration (a `.spec` file or a build script) does not exist
-yet. When it is added, it will live at the repo root or in a `packaging/`-style
-location — not inside this `release/` folder, which is reserved for build output only.
+The PyInstaller build configuration lives at the repo root, not inside this
+`release/` folder (which is reserved for build output only):
+
+- `BradyForge.spec` — the PyInstaller spec file.
+- `BUILD.md` — the build and self-signed code-signing instructions.
+
+Note that the spec and build steps have not been executed or verified in the
+development sandbox (no PyInstaller installed, no Windows GUI available); see
+`BUILD.md` for details.

@@ -75,7 +75,7 @@ Run the test suite:
 python -m pytest -q
 ```
 
-As of this writing, this runs **92 tests**, all passing.
+As of this writing, this runs **94 tests**, all passing.
 
 **Sandbox limitation:** this dev environment has no display, so `pywebview`
 and the PyInstaller-packaged executable can't actually be exercised
@@ -110,8 +110,22 @@ project:
 
 Packaged build output (the `.exe` produced by PyInstaller, plus any
 accompanying build artifacts such as a self-signed certificate) is documented
-in `release/README.md`. A PyInstaller `.spec` file or build script does not
-exist yet — this is a known future step, not yet implemented.
+in `release/README.md`. The PyInstaller build configuration now lives at the
+repo root:
+
+- `BradyForge.spec` — the PyInstaller spec file, bundling
+  `bradyforge/webui/index.html`, `styles.css`, and `app.js` into the frozen
+  app and producing a single-file, windowed executable at
+  `dist/BradyForge.exe`.
+- `BUILD.md` — step-by-step instructions for running the PyInstaller build
+  and, optionally, code-signing the resulting `.exe` with a self-signed
+  certificate.
+
+**Sandbox limitation:** neither the spec nor the build/signing steps have
+been executed or verified in this development environment — PyInstaller
+isn't installed here and there's no Windows GUI available to smoke-test the
+packaged app. They should be validated on a real Windows machine before the
+build is shipped.
 
 ## Documentation
 
