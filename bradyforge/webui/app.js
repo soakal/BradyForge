@@ -1,11 +1,11 @@
-// BradyForge webui — tab switching, Settings Api-bridge wiring, and
-// Upload panel file selection/validation.
+// BradyForge webui — tab switching, Settings Api-bridge wiring, Generic
+// Form save wiring, and Upload panel file selection/validation/upload.
 //
 // Pure DOM manipulation, no framework. The Settings panel is wired to
-// `window.pywebview.api` (`get_settings` / `save_settings`). The Upload
-// panel's file picker, drag-and-drop, and client-side validation are
-// wired here too, but the Upload panel does not call any backend Api
-// method this cycle — that wiring is deliberately out of scope for now.
+// `window.pywebview.api` (`get_settings` / `save_settings`). The Generic
+// Form panel's Save button is wired to `submit_generic_labels`. The
+// Upload panel's file picker, drag-and-drop, client-side validation, and
+// Save button are wired to `accept_upload_bytes`.
 
 document.addEventListener("DOMContentLoaded", function () {
   var tabs = [
@@ -39,6 +39,82 @@ document.addEventListener("DOMContentLoaded", function () {
       activate(entry.tabId);
     });
   });
+
+  // Generic Form panel — Api-wired Save handler.
+  function setGenericStatus(message, isError) {
+    var genericStatus = document.getElementById("generic-status");
+    if (!genericStatus) {
+      return;
+    }
+    genericStatus.textContent = message;
+    genericStatus.classList.toggle("is-error", !!isError);
+  }
+
+  var saveGenericBtn = document.getElementById("save-generic-btn");
+  if (saveGenericBtn) {
+    saveGenericBtn.addEventListener("click", function () {
+      var nameInput = document.getElementById("name");
+      var departmentInput = document.getElementById("department");
+
+      var name = nameInput ? nameInput.value.trim() : "";
+      var department = departmentInput ? departmentInput.value.trim() : "";
+
+      if (!name || !department) {
+        setGenericStatus("Name and Department are required.", true);
+        return;
+      }
+
+      var line1Input = document.getElementById("line1");
+      var line2Input = document.getElementById("line2");
+      var line3Input = document.getElementById("line3");
+      var quantityInput = document.getElementById("quantity");
+
+      var rows = [
+        {
+          line1: line1Input ? line1Input.value.trim() : "",
+          line2: line2Input ? line2Input.value.trim() : "",
+          line3: line3Input ? line3Input.value.trim() : "",
+          qty: quantityInput ? quantityInput.value.trim() : "",
+        },
+      ];
+
+      if (!(window.pywebview && window.pywebview.api)) {
+        setGenericStatus("Save is unavailable — the backend API is not connected.", true);
+        return;
+      }
+
+      var filename = window.prompt("Enter a filename for this label workbook:");
+      if (filename === null || !filename.trim()) {
+        setGenericStatus("Save cancelled — a filename is required.", true);
+        return;
+      }
+      filename = filename.trim();
+
+      setGenericStatus("Saving…");
+
+      window.pywebview.api
+        .submit_generic_labels(rows, filename)
+        .then(function (result) {
+          result = result || {};
+          if (!result.ok) {
+            setGenericStatus(result.error || "Save failed.", true);
+          } else if (result.fallback) {
+            setGenericStatus(
+              result.message || "Save saved to a local fallback location."
+            );
+          } else {
+            setGenericStatus(
+              "Save successful: " + (result.filename || filename) +
+                (result.saved_path ? " (" + result.saved_path + ")" : "")
+            );
+          }
+        })
+        .catch(function (error) {
+          console.error("Failed to save generic labels:", error);
+          setGenericStatus("Save failed due to an unexpected error.", true);
+        });
+    });
+  }
 
   // Upload panel — client-side file selection and validation only.
   // No Api calls here; wiring the actual upload is a future step.

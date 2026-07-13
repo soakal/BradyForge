@@ -327,3 +327,44 @@ def test_app_js_upload_placeholder_message_removed():
     # gone now that the upload actually calls the backend.
     content = APP_JS_PATH.read_text(encoding="utf-8")
     assert "connecting to backend in a future step" not in content
+
+
+def test_generic_panel_has_status_element():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_generic = _extract_panel(content, "panel-generic")
+    assert 'id="generic-status"' in panel_generic
+
+
+def _extract_generic_wiring_section(content):
+    """Return the app.js slice that wires up the Generic Form panel.
+
+    Bounded by the "Generic Form panel" comment marker (start of this
+    cycle's additions) and the "Upload panel" comment marker (start of
+    the pre-existing Upload wiring), so assertions on `.ok`/`.fallback`
+    branching land on the Generic Form's own handler rather than the
+    Upload panel's already-legitimate `window.pywebview.api.*` calls.
+    """
+    start = content.index("// Generic Form panel")
+    end = content.index("// Upload panel — client-side")
+    assert end > start
+    return content[start:end]
+
+
+def test_app_js_generic_wiring_calls_submit_generic_labels():
+    # The Generic Form panel's Save button calls the backend via
+    # submit_generic_labels, prompting for a filename and branching on
+    # the result's ok/fallback flags.
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    generic_section = _extract_generic_wiring_section(content)
+    assert "submit_generic_labels(" in generic_section
+    assert "window.prompt(" in generic_section
+    assert ".ok" in generic_section
+    assert ".fallback" in generic_section
+    assert "pywebview" in generic_section
+
+
+def test_app_js_generic_wiring_references_field_ids():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    generic_section = _extract_generic_wiring_section(content)
+    for field_id in ("name", "department", "line1", "line2", "line3", "quantity"):
+        assert field_id in generic_section, f"{field_id!r} missing from generic wiring section"
