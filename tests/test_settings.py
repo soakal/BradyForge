@@ -62,3 +62,47 @@ def test_save_settings_creates_parent_directories(tmp_path):
     save_settings(default_settings(), str(settings_path))
 
     assert settings_path.exists()
+
+
+def test_load_settings_ignores_empty_and_non_string_values(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text(
+        json.dumps(
+            {
+                "uploads_path": "   ",
+                "label_images_path": 123,
+                "fallback_email": "kept@example.com",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = load_settings(str(settings_path))
+
+    assert loaded["uploads_path"] == UPLOADS_PATH
+    assert loaded["label_images_path"] == LABEL_IMAGES_PATH
+    assert loaded["fallback_email"] == "kept@example.com"
+
+
+def test_save_settings_strips_whitespace_and_drops_non_strings(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    save_settings(
+        {
+            "uploads_path": "  \\\\server\\share\\uploads  ",
+            "label_images_path": None,
+            "fallback_email": "a@b.com",
+        },
+        str(settings_path),
+    )
+
+    stored = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert stored["uploads_path"] == "\\\\server\\share\\uploads"
+    assert "label_images_path" not in stored
+    assert stored["fallback_email"] == "a@b.com"
+
+
+def test_save_settings_leaves_no_temp_file_behind(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    save_settings(default_settings(), str(settings_path))
+
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["settings.json"]

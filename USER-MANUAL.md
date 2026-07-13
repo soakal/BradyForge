@@ -88,6 +88,16 @@ messages mean and what to do about them:
 - **"Name and Department are required."**
   You left one or both of those fields blank. Fill them in and try again.
 
+- **"Quantity must be a whole number."**
+  The Quantity box only accepts a plain whole number (like 5 or 20) — no
+  decimals, minus signs, or letters. Fix the number and click Save again.
+
+- **A message about an invalid filename**
+  The filename you typed contains characters Windows doesn't allow in file
+  names (such as `\ / : " < > | ? *`), or was empty. Click Save again and
+  type a simple name — letters, numbers, spaces, dashes, and dots are all
+  fine.
+
 - **"Please select a .xlsx file."** or a message saying the file **isn't a
   valid or genuine Excel workbook**
   The file you picked either isn't an Excel (`.xlsx`) file, or the file

@@ -458,3 +458,76 @@ def test_app_js_retries_api_dependent_features_on_pywebviewready():
     tail = content[content.rindex("function loadSettings") :]
     assert "pywebviewready" in tail
     assert "addEventListener" in tail
+
+
+STYLES_CSS_PATH = app.HTML_PATH.parent / "styles.css"
+
+
+def test_app_js_init_guard_prevents_double_initialization():
+    # If the api is already present at DOMContentLoaded AND the
+    # pywebviewready event fires afterward, the api-dependent init must
+    # only run once (a second run would clobber in-progress Settings
+    # edits and drop the label-tile selection).
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    tail = content[content.rindex("function loadSettings") :]
+    assert "apiFeaturesInitialized" in tail
+
+
+def test_app_js_prevents_document_level_drop_navigation():
+    # Dropping a file outside the dropzone must not navigate the webview
+    # away from the app (the browser default for file drops).
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    head = content[: content.index("// Generic Form panel")]
+    assert '"drop"' in head
+    assert '"dragover"' in head
+    assert "preventDefault" in head
+
+
+def test_app_js_validates_quantity_as_whole_number():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    generic_section = _extract_generic_wiring_section(content)
+    assert "Quantity must be a whole number." in generic_section
+
+
+def test_app_js_upload_captures_file_before_async_read():
+    # The file reference must be captured into a local before the
+    # asynchronous FileReader/upload starts, so changing the selection
+    # mid-upload can't swap the filename or null the reference.
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    upload_section = _extract_upload_wiring_section(content)
+    assert "fileToUpload = selectedUploadFile" in upload_section
+    assert "readAsDataURL(fileToUpload)" in upload_section
+
+
+def test_app_js_disables_buttons_while_submission_in_flight():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    generic_section = _extract_generic_wiring_section(content)
+    upload_section = _extract_upload_wiring_section(content)
+    assert "saveGenericBtn.disabled = true" in generic_section
+    assert "saveUploadBtn.disabled = true" in upload_section
+
+
+def test_html_dropzone_is_keyboard_accessible():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    dropzone_tag = re.search(r'<div[^>]*id="upload-dropzone"[^>]*>', content)
+    assert dropzone_tag
+    assert 'tabindex="0"' in dropzone_tag.group(0)
+    assert 'role="button"' in dropzone_tag.group(0)
+    # And app.js must open the file picker on keyboard activation.
+    js = APP_JS_PATH.read_text(encoding="utf-8")
+    assert '"keydown"' in js
+
+
+def test_app_js_label_tiles_are_buttons():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    label_picker_section = _extract_label_picker_wiring_section(content)
+    assert 'createElement("button")' in label_picker_section
+    assert "aria-pressed" in label_picker_section
+
+
+def test_styles_css_defines_error_status_styling():
+    # app.js toggles the `is-error` class on the status areas; the CSS
+    # must actually style it so error messages are distinguishable.
+    css = STYLES_CSS_PATH.read_text(encoding="utf-8")
+    assert ".is-error" in css
+    assert "--color-error" in css

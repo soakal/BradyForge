@@ -16,6 +16,7 @@
   --color-amber-500: #e0983a;
   --color-amber-400: #eaad5c;
   --color-amber-100: #fbead2;
+  --color-error: #b3261e;
 
   --shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.06), 0 1px 1px rgba(11, 18, 32, 0.04);
   --shadow-md: 0 8px 24px rgba(11, 18, 32, 0.10), 0 2px 6px rgba(11, 18, 32, 0.06);
@@ -229,6 +230,8 @@ body {
 }
 
 .label-tile {
+  appearance: none;
+  font-family: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -244,6 +247,11 @@ body {
 
 .label-tile:hover {
   border-color: var(--color-amber-500);
+}
+
+.label-tile:focus-visible {
+  outline: 2px solid var(--color-amber-400);
+  outline-offset: 2px;
 }
 
 .label-tile.is-selected {
@@ -291,6 +299,11 @@ body {
   box-shadow: 0 0 0 3px var(--color-amber-100);
 }
 
+.dropzone:focus-visible {
+  outline: 2px solid var(--color-amber-400);
+  outline-offset: 2px;
+}
+
 .dropzone-text {
   color: var(--color-slate-400);
   font-size: 14px;
@@ -325,4 +338,28 @@ body {
 .btn-primary:focus-visible {
   outline: 2px solid var(--color-navy-700);
   outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Status message areas under each panel's action button. The JS toggles
+   the `is-error` class for failure messages; without this rule errors
+   were visually indistinguishable from success messages. */
+#generic-status,
+#upload-status,
+#settings-status {
+  min-height: 1.5em;
+  font-size: 14px;
+  color: var(--color-navy-700);
+  overflow-wrap: anywhere;
+}
+
+#generic-status.is-error,
+#upload-status.is-error,
+#settings-status.is-error {
+  color: var(--color-error);
+  font-weight: 600;
 }

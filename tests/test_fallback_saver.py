@@ -48,3 +48,17 @@ def test_creates_fallback_dir_if_missing(tmp_path):
     assert missing_dir.is_dir()
     with open(result.local_path, "rb") as f:
         assert f.read() == b"content"
+
+
+def test_second_fallback_save_with_same_filename_does_not_overwrite(tmp_path):
+    first = save_local_and_zip(b"first content", "report.xlsx", tmp_path)
+    second = save_local_and_zip(b"second content", "report.xlsx", tmp_path)
+
+    assert first.local_path != second.local_path
+    with open(first.local_path, "rb") as f:
+        assert f.read() == b"first content"
+    with open(second.local_path, "rb") as f:
+        assert f.read() == b"second content"
+    assert first.zip_path != second.zip_path
+    with zipfile.ZipFile(second.zip_path) as zf:
+        assert zf.read(zf.namelist()[0]) == b"second content"

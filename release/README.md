@@ -21,6 +21,7 @@ The PyInstaller build configuration lives at the repo root, not inside this
 - `BradyForge.spec` — the PyInstaller spec file.
 - `BUILD.md` — the build and self-signed code-signing instructions.
 
-Note that the spec and build steps have not been executed or verified in the
-development sandbox (no PyInstaller installed, no Windows GUI available); see
-`BUILD.md` for details.
+The spec and build/signing steps have been executed on a real Windows
+machine, producing the signed `BradyForge.exe` staged (untracked) in this
+folder; see `BUILD.md` for the procedure and for the reminder to rebuild
+and re-sign after any source change.

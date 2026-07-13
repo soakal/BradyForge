@@ -166,7 +166,7 @@ def test_accept_upload_without_destination_dir_uses_config_uploads_path(
     source_path.parent.mkdir()
     source_path.write_bytes(SAMPLE_MULTI_TAB_PATH.read_bytes())
 
-    api = Api()
+    api = Api(settings_path=tmp_path / "settings.json")
     result = api.accept_upload(str(source_path))
 
     assert result["ok"] is True
@@ -187,7 +187,7 @@ def test_accept_upload_bytes_without_destination_dir_uses_config_uploads_path(
     source_bytes = SAMPLE_MULTI_TAB_PATH.read_bytes()
     encoded = base64.b64encode(source_bytes).decode("ascii")
 
-    api = Api()
+    api = Api(settings_path=tmp_path / "settings.json")
     result = api.accept_upload_bytes("report.xlsx", encoded)
 
     assert result["ok"] is True
@@ -351,7 +351,7 @@ def test_submit_generic_labels_without_destination_dir_uses_config_uploads_path(
     )
     rows = [{"line1": "Widget A", "line2": "Part 123", "line3": "Rev 1", "qty": 10}]
 
-    api = Api()
+    api = Api(settings_path=tmp_path / "settings.json")
     result = api.submit_generic_labels(rows, "labels.xlsx")
 
     assert result["ok"] is True
@@ -429,7 +429,7 @@ def test_get_label_images_without_images_dir_uses_config_label_images_path(
     image_bytes = b"fake-bmp-bytes"
     (default_images_dir / "logo.bmp").write_bytes(image_bytes)
 
-    api = Api()
+    api = Api(settings_path=tmp_path / "settings.json")
     result = api.get_label_images()
 
     assert len(result) == 1
@@ -471,3 +471,197 @@ def test_get_label_images_skips_unreadable_file_without_raising(tmp_path, monkey
     assert [entry["filename"] for entry in result] == ["good.png"]
     _, _, encoded = result[0]["data_url"].partition("base64,")
     assert base64.b64decode(encoded) == good_bytes
+
+
+def test_accept_upload_without_destination_dir_uses_saved_settings_uploads_path(
+    tmp_path,
+):
+    # The Settings screen's saved uploads_path must actually take effect:
+    # an upload with no explicit destination lands in the settings path,
+    # not the hardcoded config default.
+    settings_path = tmp_path / "settings.json"
+    settings_destination = tmp_path / "settings_destination"
+    settings_destination.mkdir()
+
+    api = Api(settings_path=settings_path)
+    api.save_settings({"uploads_path": str(settings_destination)})
+
+    source_path = tmp_path / "source" / "report.xlsx"
+    source_path.parent.mkdir()
+    source_path.write_bytes(SAMPLE_MULTI_TAB_PATH.read_bytes())
+
+    result = api.accept_upload(str(source_path))
+
+    assert result["ok"] is True
+    assert Path(result["saved_path"]) == settings_destination / "report.xlsx"
+    assert (settings_destination / "report.xlsx").exists()
+
+
+def test_submit_generic_labels_without_destination_dir_uses_saved_settings(
+    tmp_path,
+):
+    settings_path = tmp_path / "settings.json"
+    settings_destination = tmp_path / "settings_destination"
+    settings_destination.mkdir()
+
+    api = Api(settings_path=settings_path)
+    api.save_settings({"uploads_path": str(settings_destination)})
+
+    rows = [{"line1": "Widget A", "line2": "Part 123", "line3": "Rev 1", "qty": 10}]
+    result = api.submit_generic_labels(rows, "labels.xlsx")
+
+    assert result["ok"] is True
+    assert Path(result["saved_path"]) == settings_destination / "labels.xlsx"
+    assert (settings_destination / "labels.xlsx").exists()
+
+
+def test_get_label_images_without_images_dir_uses_saved_settings(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    settings_images_dir = tmp_path / "settings_images"
+    settings_images_dir.mkdir()
+    (settings_images_dir / "logo.png").write_bytes(b"fake-png-bytes")
+
+    api = Api(settings_path=settings_path)
+    api.save_settings({"label_images_path": str(settings_images_dir)})
+
+    result = api.get_label_images()
+
+    assert [entry["filename"] for entry in result] == ["logo.png"]
+
+
+def test_empty_saved_uploads_path_falls_back_to_config_default(
+    tmp_path, monkeypatch
+):
+    # A user saving an empty uploads path must not break uploads — the
+    # confirmed config default is used instead.
+    default_destination_dir = tmp_path / "default_destination"
+    default_destination_dir.mkdir()
+    monkeypatch.setattr(
+        bradyforge.config, "UPLOADS_PATH", str(default_destination_dir)
+    )
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text('{"uploads_path": "   "}', encoding="utf-8")
+
+    rows = [{"line1": "Widget A", "line2": "Part 123", "line3": "Rev 1", "qty": 10}]
+    api = Api(settings_path=settings_path)
+    result = api.submit_generic_labels(rows, "labels.xlsx")
+
+    assert result["ok"] is True
+    assert Path(result["saved_path"]) == default_destination_dir / "labels.xlsx"
+
+
+def test_save_settings_with_non_dict_input_returns_current_settings(tmp_path):
+    api = Api(settings_path=tmp_path / "settings.json")
+
+    result = api.save_settings(None)
+
+    assert result == default_settings()
+    assert not (tmp_path / "settings.json").exists()
+
+
+def test_accept_upload_bytes_path_traversal_filename_is_reduced_to_basename(
+    tmp_path,
+):
+    # A crafted filename with directory components must not escape the
+    # destination directory; only its basename is used.
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    source_bytes = SAMPLE_MULTI_TAB_PATH.read_bytes()
+    encoded = base64.b64encode(source_bytes).decode("ascii")
+
+    api = Api()
+    result = api.accept_upload_bytes(
+        r"..\..\evil.xlsx", encoded, str(destination_dir)
+    )
+
+    assert result["ok"] is True
+    assert result["filename"] == "evil.xlsx"
+    assert Path(result["saved_path"]) == destination_dir / "evil.xlsx"
+    assert not (tmp_path / "evil.xlsx").exists()
+
+
+def test_accept_upload_bytes_rejects_empty_filename(tmp_path):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    encoded = base64.b64encode(b"irrelevant").decode("ascii")
+
+    api = Api()
+    result = api.accept_upload_bytes("   ", encoded, str(destination_dir))
+
+    assert result["ok"] is False
+    assert "error" in result
+    assert list(destination_dir.iterdir()) == []
+
+
+def test_accept_upload_bytes_rejects_malformed_base64(tmp_path):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+
+    api = Api()
+    result = api.accept_upload_bytes(
+        "report.xlsx", "!!!not-base64!!!", str(destination_dir)
+    )
+
+    assert result["ok"] is False
+    assert "error" in result
+    assert list(destination_dir.iterdir()) == []
+
+
+def test_accept_upload_bytes_rejects_non_string_content(tmp_path):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+
+    api = Api()
+    result = api.accept_upload_bytes("report.xlsx", None, str(destination_dir))
+
+    assert result["ok"] is False
+    assert "error" in result
+
+
+def test_accept_upload_bytes_unicode_filename_round_trips(tmp_path):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    source_bytes = SAMPLE_MULTI_TAB_PATH.read_bytes()
+    encoded = base64.b64encode(source_bytes).decode("ascii")
+
+    api = Api()
+    result = api.accept_upload_bytes(
+        "étiquette 標籤.xlsx", encoded, str(destination_dir)
+    )
+
+    assert result["ok"] is True
+    assert result["filename"] == "étiquette 標籤.xlsx"
+    saved_path = Path(result["saved_path"])
+    assert saved_path.exists()
+    assert saved_path.read_bytes() == source_bytes
+
+
+def test_submit_generic_labels_rejects_filename_with_invalid_characters(
+    tmp_path,
+):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    rows = [{"line1": "Widget A", "line2": "Part 123", "line3": "Rev 1", "qty": 10}]
+
+    api = Api()
+    result = api.submit_generic_labels(rows, 'bad:"name?.xlsx', str(destination_dir))
+
+    assert result["ok"] is False
+    assert "error" in result
+    assert list(destination_dir.iterdir()) == []
+
+
+def test_submit_generic_labels_malformed_rows_return_error_without_raising(
+    tmp_path,
+):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+
+    api = Api()
+    result = api.submit_generic_labels(
+        ["not-a-dict", 42], "labels.xlsx", str(destination_dir)
+    )
+
+    assert result["ok"] is False
+    assert "error" in result
+    assert list(destination_dir.iterdir()) == []

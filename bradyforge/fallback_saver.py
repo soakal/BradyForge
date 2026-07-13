@@ -12,6 +12,8 @@ import os
 import zipfile
 from dataclasses import dataclass
 
+from bradyforge.filename_util import resolve_upload_filename
+
 
 @dataclass
 class FallbackSaveResult:
@@ -30,6 +32,11 @@ def save_local_and_zip(source_bytes, filename, fallback_dir):
     a zip archive containing that single file is created alongside it as
     `fallback_dir/<name>.zip` (using the filename's stem).
 
+    If a file named `filename` already exists in `fallback_dir` (e.g. a
+    previous fallback save of the same workbook), a collision-safe name is
+    resolved via `resolve_upload_filename` so the earlier fallback copy is
+    never overwritten; the zip name follows the resolved filename's stem.
+
     Returns a `FallbackSaveResult` with the local file path, the zip path,
     and a human-readable message explaining that the uploads share was
     unreachable, that the file was saved locally instead, and that the user
@@ -38,6 +45,7 @@ def save_local_and_zip(source_bytes, filename, fallback_dir):
     """
     os.makedirs(fallback_dir, exist_ok=True)
 
+    filename = resolve_upload_filename(fallback_dir, filename)
     local_path = os.path.join(fallback_dir, filename)
     with open(local_path, "wb") as f:
         f.write(source_bytes)

@@ -92,7 +92,13 @@
       </div>
       <div id="panel-upload" class="tab-panel" role="tabpanel" aria-labelledby="tab-upload">
         <form class="forge-form" id="upload-form">
-          <div class="dropzone" id="upload-dropzone">
+          <div
+            class="dropzone"
+            id="upload-dropzone"
+            role="button"
+            tabindex="0"
+            aria-label="Choose or drop a completed .xlsx file to upload"
+          >
             <span class="dropzone-text">Drag and drop your completed .xlsx here, or click to browse</span>
             <input class="dropzone-input" type="file" id="file-input" name="file-input" accept=".xlsx" hidden />
           </div>

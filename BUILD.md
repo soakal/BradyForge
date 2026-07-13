@@ -4,14 +4,14 @@ This document covers packaging BradyForge into a standalone Windows
 executable with PyInstaller, and optionally code-signing that
 executable with a self-signed certificate.
 
-> **Not yet executed in this sandbox.** This build process has not
-> been run in this development environment — PyInstaller is not
-> installed here, and there is no Windows GUI available to smoke-test
-> the resulting exe (`webview` requires a real desktop session). The
-> `BradyForge.spec` file was authored as configuration only. Whoever
-> runs the real build on a Windows machine with PyInstaller installed
-> should validate both the build and the packaged app's ability to
-> launch and locate its bundled UI files before shipping it.
+> **Status: executed.** This build (and the self-signed code-signing
+> step below) has been run for real on a Windows machine; the signed
+> executable is staged at `release/BradyForge.exe` (not committed to
+> git — `release/` build output is gitignored). Note the exe does not
+> rebuild itself: after any source change under `bradyforge/`
+> (including the HTML/CSS/JS in `bradyforge/webui/`), re-run the build
+> and re-sign before shipping, and smoke-test that the window opens
+> and the UI loads.
 
 ## 1. Building the executable
 
@@ -48,9 +48,8 @@ machines that trust that certificate (see the GPO note below for
 wider trust).
 
 These steps are run manually (or scripted) in an elevated PowerShell
-session on a real Windows machine — they are illustrative, standard
-PowerShell/Windows SDK syntax, and have not been executed in this
-sandbox.
+session on a real Windows machine, and have been used to sign the
+executable staged in `release/`.
 
 ### 2a. Create a self-signed code-signing certificate
 

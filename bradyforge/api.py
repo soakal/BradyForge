@@ -9,15 +9,15 @@ normal method call, without a live webview.
 """
 
 import base64
+import binascii
 import io
 import os
 import shutil
 import tempfile
 from pathlib import Path
 
-from bradyforge import config
 from bradyforge.fallback_saver import save_local_and_zip
-from bradyforge.filename_util import resolve_upload_filename
+from bradyforge.filename_util import resolve_upload_filename, sanitize_filename
 from bradyforge.generic_writer import write_generic_workbook
 from bradyforge.label_images import list_label_images
 from bradyforge.settings import load_settings, save_settings
@@ -69,19 +69,62 @@ class Api:
 
         Delegates to `bradyforge.settings.save_settings`, then re-reads
         via `get_settings()` so callers receive the merged/persisted
-        dict rather than a raw echo of their input.
+        dict rather than a raw echo of their input. If `data` is not a
+        dict (malformed input from the JS bridge), nothing is written and
+        the current settings are returned unchanged.
         """
-        save_settings(data, self.settings_path)
+        if isinstance(data, dict):
+            save_settings(data, self.settings_path)
         return self.get_settings()
+
+    def _uploads_dir(self):
+        """Resolve the effective uploads directory from saved settings.
+
+        `load_settings` already falls back to the confirmed
+        `bradyforge.config` defaults for missing/empty values, so this
+        always returns a usable path string. This is what makes the
+        Settings screen's "Uploads Folder Path" actually take effect.
+        """
+        return load_settings(self.settings_path)["uploads_path"]
+
+    def _label_images_dir(self):
+        """Resolve the effective label-images directory from saved settings."""
+        return load_settings(self.settings_path)["label_images_path"]
+
+    def _save_bytes_to_destination(self, destination_dir, filename, source_bytes):
+        """Write `source_bytes` into `destination_dir` without overwriting.
+
+        Resolves a collision-safe name via `resolve_upload_filename`, then
+        opens the destination with exclusive-create (`"xb"`) so that even
+        if another user on another machine wins a race for the same
+        resolved name between the existence check and the write, this
+        write fails with `FileExistsError` instead of silently clobbering
+        their file — in which case the name is re-resolved and retried a
+        few times. Returns `(resolved_filename, saved_path)`. Any genuine
+        unreachability error (`OSError`/`PermissionError`) propagates for
+        the caller's fallback handling.
+        """
+        last_error = None
+        for _ in range(5):
+            resolved = resolve_upload_filename(destination_dir, filename)
+            saved_path = os.path.join(destination_dir, resolved)
+            try:
+                with open(saved_path, "xb") as f:
+                    f.write(source_bytes)
+                return resolved, saved_path
+            except FileExistsError as exc:
+                last_error = exc
+        raise last_error
 
     def accept_upload(self, source_path, destination_dir=None):
         """Validate and copy an uploaded workbook into `destination_dir`.
 
         Runs `source_path` through `validate_xlsx_file` (genuine, non-corrupted
         .xlsx) and `validate_upload_size` (within the configured size limit).
-        On success, resolves a collision-safe destination filename via
-        `resolve_upload_filename`, copies the file with `shutil.copy2`, and
-        returns `{"ok": True, "saved_path": ..., "filename": ...}`.
+        On success, resolves a collision-safe destination filename and
+        writes the file's bytes with an exclusive-create open (see
+        `_save_bytes_to_destination`), returning
+        `{"ok": True, "saved_path": ..., "filename": ...}`.
 
         Expected validation failures (`InvalidXlsxError`, `FileTooLargeError`)
         are caught and returned as `{"ok": False, "error": <message>}` rather
@@ -98,12 +141,13 @@ class Api:
         "message": ...}`.
 
         `destination_dir` is optional; when omitted (or `None`), it defaults
-        to `bradyforge.config.UPLOADS_PATH`, so callers don't need to know or
-        pass the real uploads location.
+        to the saved settings' `uploads_path` (which itself falls back to
+        `bradyforge.config.UPLOADS_PATH`), so callers don't need to know or
+        pass the real uploads location and edits made on the Settings
+        screen take effect immediately.
         """
-        destination_dir = (
-            destination_dir if destination_dir is not None else config.UPLOADS_PATH
-        )
+        if destination_dir is None:
+            destination_dir = self._uploads_dir()
 
         try:
             validate_xlsx_file(source_path)
@@ -111,17 +155,16 @@ class Api:
         except (InvalidXlsxError, FileTooLargeError) as exc:
             return {"ok": False, "error": str(exc)}
 
+        source_bytes = Path(source_path).read_bytes()
+        original_filename = os.path.basename(source_path)
+
         try:
-            filename = resolve_upload_filename(
-                destination_dir, os.path.basename(source_path)
+            filename, saved_path = self._save_bytes_to_destination(
+                destination_dir, original_filename, source_bytes
             )
-            saved_path = os.path.join(destination_dir, filename)
-            shutil.copy2(source_path, saved_path)
         except (OSError, PermissionError):
-            filename = os.path.basename(source_path)
-            source_bytes = Path(source_path).read_bytes()
             fallback_result = save_local_and_zip(
-                source_bytes, filename, self.fallback_dir
+                source_bytes, original_filename, self.fallback_dir
             )
             return {
                 "ok": True,
@@ -148,17 +191,40 @@ class Api:
         always removed afterward, regardless of whether `accept_upload`
         succeeds, returns an error, or raises.
 
+        `filename` and `base64_content` are untrusted JS-bridge input:
+        the filename is reduced to a safe basename via `sanitize_filename`
+        (rejecting path traversal, forbidden Windows characters, and
+        empty names), and a base64 payload that cannot be decoded is
+        reported as `{"ok": False, "error": ...}` rather than raised.
+
         `destination_dir` is optional; when omitted (or `None`), it is passed
         through unchanged to `accept_upload`, which resolves the default
-        (`bradyforge.config.UPLOADS_PATH`) itself.
+        (saved settings `uploads_path`, falling back to
+        `bradyforge.config.UPLOADS_PATH`) itself.
         """
+        safe_filename = sanitize_filename(filename)
+        if safe_filename is None:
+            return {
+                "ok": False,
+                "error": "Invalid filename: it must be a plain name without "
+                'path separators or the characters < > : " | ? *.',
+            }
+
+        if not isinstance(base64_content, str):
+            return {"ok": False, "error": "Invalid file content."}
         if "," in base64_content:
             _, _, base64_content = base64_content.partition(",")
-        raw_bytes = base64.b64decode(base64_content)
+        try:
+            raw_bytes = base64.b64decode(base64_content)
+        except (binascii.Error, ValueError):
+            return {
+                "ok": False,
+                "error": "The uploaded file content could not be decoded.",
+            }
 
         temp_dir = tempfile.mkdtemp()
         try:
-            temp_path = os.path.join(temp_dir, filename)
+            temp_path = os.path.join(temp_dir, safe_filename)
             with open(temp_path, "wb") as f:
                 f.write(raw_bytes)
             return self.accept_upload(temp_path, destination_dir)
@@ -188,29 +254,50 @@ class Api:
         `{"ok": True, "fallback": True, "local_path": ..., "zip_path": ...,
         "message": ...}`.
 
+        `rows` and `filename` are untrusted JS-bridge input: the filename
+        is reduced to a safe basename via `sanitize_filename` (rejecting
+        path traversal, forbidden Windows characters, and empty names),
+        and structurally malformed rows are reported as
+        `{"ok": False, "error": ...}` rather than raised.
+
         `destination_dir` is optional; when omitted (or `None`), it defaults
-        to `bradyforge.config.UPLOADS_PATH`, so callers don't need to know or
-        pass the real uploads location.
+        to the saved settings' `uploads_path` (which itself falls back to
+        `bradyforge.config.UPLOADS_PATH`), so callers don't need to know or
+        pass the real uploads location and edits made on the Settings
+        screen take effect immediately.
         """
-        destination_dir = (
-            destination_dir if destination_dir is not None else config.UPLOADS_PATH
-        )
+        if destination_dir is None:
+            destination_dir = self._uploads_dir()
 
         if not rows:
             return {"ok": False, "error": "No label rows provided."}
 
+        safe_filename = sanitize_filename(filename)
+        if safe_filename is None:
+            return {
+                "ok": False,
+                "error": "Invalid filename: it must be a plain name without "
+                'path separators or the characters < > : " | ? *.',
+            }
+
         buffer = io.BytesIO()
-        write_generic_workbook(rows, buffer)
+        try:
+            write_generic_workbook(rows, buffer)
+        except (KeyError, TypeError, AttributeError):
+            return {
+                "ok": False,
+                "error": "Malformed label rows: each row must provide "
+                "line1, line2, line3, and qty.",
+            }
         source_bytes = buffer.getvalue()
 
         try:
-            resolved_filename = resolve_upload_filename(destination_dir, filename)
-            saved_path = os.path.join(destination_dir, resolved_filename)
-            with open(saved_path, "wb") as f:
-                f.write(source_bytes)
+            resolved_filename, saved_path = self._save_bytes_to_destination(
+                destination_dir, safe_filename, source_bytes
+            )
         except (OSError, PermissionError):
             fallback_result = save_local_and_zip(
-                source_bytes, filename, self.fallback_dir
+                source_bytes, safe_filename, self.fallback_dir
             )
             return {
                 "ok": True,
@@ -241,12 +328,13 @@ class Api:
         skipped rather than aborting the whole listing.
 
         `images_dir` is optional; when omitted (or `None`), it defaults to
-        `bradyforge.config.LABEL_IMAGES_PATH`, so callers don't need to
-        know or pass the real label-images location.
+        the saved settings' `label_images_path` (which itself falls back
+        to `bradyforge.config.LABEL_IMAGES_PATH`), so callers don't need
+        to know or pass the real label-images location and edits made on
+        the Settings screen take effect immediately.
         """
-        images_dir = (
-            images_dir if images_dir is not None else config.LABEL_IMAGES_PATH
-        )
+        if images_dir is None:
+            images_dir = self._label_images_dir()
 
         results = []
         for filename in list_label_images(images_dir):

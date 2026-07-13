@@ -2,13 +2,12 @@
 #
 # PyInstaller spec file for BradyForge.
 #
-# NOTE: This spec is authored as configuration only. It has NOT been
-# executed or verified by an actual PyInstaller build in this
-# development environment (PyInstaller is not installed here, and there
-# is no Windows GUI available to smoke-test the resulting exe). It
-# should be validated by running `pyinstaller BradyForge.spec` on a
-# real Windows machine with the project's dependencies installed. See
-# BUILD.md for the full build (and code-signing) procedure.
+# This spec has been executed on a real Windows machine: running
+# `pyinstaller BradyForge.spec` produces a single-file, windowed
+# executable at dist/BradyForge.exe, which is then signed with the
+# self-signed certificate and staged in release/. See BUILD.md for the
+# full build (and code-signing) procedure. Remember to rebuild after
+# source changes — the exe in release/ does not update itself.
 
 block_cipher = None
 

@@ -75,11 +75,11 @@ Run the test suite:
 python -m pytest -q
 ```
 
-As of this writing, this runs **94 tests**, all passing.
+As of this writing, this runs **126 tests**, all passing.
 
-**Sandbox limitation:** this dev environment has no display, so `pywebview`
-and the PyInstaller-packaged executable can't actually be exercised
-end-to-end here. To work around this:
+**Testability design:** the test suite is deliberately runnable without a
+display, without `pywebview` installed, and without launching the packaged
+executable (it was originally developed in a display-less sandbox):
 
 - `bradyforge/app.py` imports `webview` lazily (only inside `create_window()`),
   so the module — and the whole test suite — can be imported and exercised
@@ -121,11 +121,12 @@ repo root:
   and, optionally, code-signing the resulting `.exe` with a self-signed
   certificate.
 
-**Sandbox limitation:** neither the spec nor the build/signing steps have
-been executed or verified in this development environment — PyInstaller
-isn't installed here and there's no Windows GUI available to smoke-test the
-packaged app. They should be validated on a real Windows machine before the
-build is shipped.
+**Status:** the PyInstaller build and self-signed code-signing steps have
+been executed on a real Windows machine; the signed executable is staged at
+`release/BradyForge.exe` (build output itself is gitignored — only
+`release/README.md` is tracked). The exe does not rebuild itself: after any
+source change under `bradyforge/`, re-run the build and re-sign per
+`BUILD.md` before shipping.
 
 ## Documentation
 

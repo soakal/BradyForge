@@ -8,6 +8,15 @@
 // Save button are wired to `accept_upload_bytes`.
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Prevent a file dropped anywhere outside the dropzone from making the
+  // webview navigate away from the app (the browser default for drops).
+  document.addEventListener("dragover", function (event) {
+    event.preventDefault();
+  });
+  document.addEventListener("drop", function (event) {
+    event.preventDefault();
+  });
+
   var tabs = [
     { tabId: "tab-generic", panelId: "panel-generic" },
     { tabId: "tab-upload", panelId: "panel-upload" },
@@ -69,12 +78,18 @@ document.addEventListener("DOMContentLoaded", function () {
       var line3Input = document.getElementById("line3");
       var quantityInput = document.getElementById("quantity");
 
+      var quantity = quantityInput ? quantityInput.value.trim() : "";
+      if (quantity && !/^\d+$/.test(quantity)) {
+        setGenericStatus("Quantity must be a whole number.", true);
+        return;
+      }
+
       var rows = [
         {
           line1: line1Input ? line1Input.value.trim() : "",
           line2: line2Input ? line2Input.value.trim() : "",
           line3: line3Input ? line3Input.value.trim() : "",
-          qty: quantityInput ? quantityInput.value.trim() : "",
+          qty: quantity ? Number(quantity) : "",
         },
       ];
 
@@ -94,6 +109,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       setGenericStatus("Saving…");
+      saveGenericBtn.disabled = true;
 
       window.pywebview.api
         .submit_generic_labels(rows, filename)
@@ -115,6 +131,9 @@ document.addEventListener("DOMContentLoaded", function () {
         .catch(function (error) {
           console.error("Failed to save generic labels:", error);
           setGenericStatus("Save failed due to an unexpected error.", true);
+        })
+        .finally(function () {
+          saveGenericBtn.disabled = false;
         });
     });
   }
@@ -172,6 +191,17 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
+    // Keyboard access: the dropzone is focusable (tabindex="0" in the
+    // HTML) and opens the file picker on Enter or Space, like a button.
+    uploadDropzone.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (fileInput) {
+          fileInput.click();
+        }
+      }
+    });
+
     uploadDropzone.addEventListener("dragover", function (event) {
       event.preventDefault();
       uploadDropzone.classList.add("is-dragover");
@@ -226,11 +256,17 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       setUploadStatus("Uploading…");
+      saveUploadBtn.disabled = true;
+
+      // Capture the file being uploaded so a selection change while the
+      // asynchronous read/upload is in flight can't swap the filename
+      // (or null the reference) out from under the callbacks below.
+      var fileToUpload = selectedUploadFile;
 
       var reader = new FileReader();
       reader.onload = function () {
         window.pywebview.api
-          .accept_upload_bytes(selectedUploadFile.name, reader.result)
+          .accept_upload_bytes(fileToUpload.name, reader.result)
           .then(function (result) {
             result = result || {};
             if (!result.ok) {
@@ -241,7 +277,7 @@ document.addEventListener("DOMContentLoaded", function () {
               );
             } else {
               setUploadStatus(
-                "Upload successful: " + (result.filename || selectedUploadFile.name) +
+                "Upload successful: " + (result.filename || fileToUpload.name) +
                   (result.saved_path ? " (" + result.saved_path + ")" : "")
               );
             }
@@ -249,12 +285,16 @@ document.addEventListener("DOMContentLoaded", function () {
           .catch(function (error) {
             console.error("Failed to upload file:", error);
             setUploadStatus("Upload failed due to an unexpected error.", true);
+          })
+          .finally(function () {
+            saveUploadBtn.disabled = false;
           });
       };
       reader.onerror = function () {
         setUploadStatus("The selected file could not be read.", true);
+        saveUploadBtn.disabled = false;
       };
-      reader.readAsDataURL(selectedUploadFile);
+      reader.readAsDataURL(fileToUpload);
     });
   }
 
@@ -285,8 +325,12 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         images.forEach(function (image) {
-          var tile = document.createElement("div");
+          // A real <button> so tiles are keyboard-focusable and
+          // activatable with Enter/Space out of the box.
+          var tile = document.createElement("button");
+          tile.type = "button";
           tile.className = "label-tile";
+          tile.setAttribute("aria-pressed", "false");
 
           var img = document.createElement("img");
           img.src = image.data_url;
@@ -300,8 +344,10 @@ document.addEventListener("DOMContentLoaded", function () {
             );
             if (previouslySelected) {
               previouslySelected.classList.remove("is-selected");
+              previouslySelected.setAttribute("aria-pressed", "false");
             }
             tile.classList.add("is-selected");
+            tile.setAttribute("aria-pressed", "true");
           });
 
           labelPicker.appendChild(tile);
@@ -317,27 +363,38 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
+  function setSettingsStatus(message, isError) {
+    var settingsStatus = document.getElementById("settings-status");
+    if (!settingsStatus) {
+      return;
+    }
+    settingsStatus.textContent = message;
+    settingsStatus.classList.toggle("is-error", !!isError);
+  }
+
+  function applySettingsToInputs(settings) {
+    settings = settings || {};
+    var uploadsPathInput = document.getElementById("uploads-path");
+    var labelImagesPathInput = document.getElementById("label-images-path");
+    var fallbackEmailInput = document.getElementById("fallback-email");
+
+    if (uploadsPathInput) {
+      uploadsPathInput.value = settings.uploads_path || "";
+    }
+    if (labelImagesPathInput) {
+      labelImagesPathInput.value = settings.label_images_path || "";
+    }
+    if (fallbackEmailInput) {
+      fallbackEmailInput.value = settings.fallback_email || "";
+    }
+  }
+
   function loadSettings() {
     if (!(window.pywebview && window.pywebview.api)) {
       return;
     }
     window.pywebview.api.get_settings()
-      .then(function (settings) {
-        settings = settings || {};
-        var uploadsPathInput = document.getElementById("uploads-path");
-        var labelImagesPathInput = document.getElementById("label-images-path");
-        var fallbackEmailInput = document.getElementById("fallback-email");
-
-        if (uploadsPathInput) {
-          uploadsPathInput.value = settings.uploads_path || "";
-        }
-        if (labelImagesPathInput) {
-          labelImagesPathInput.value = settings.label_images_path || "";
-        }
-        if (fallbackEmailInput) {
-          fallbackEmailInput.value = settings.fallback_email || "";
-        }
-      })
+      .then(applySettingsToInputs)
       .catch(function (error) {
         console.error("Failed to load settings:", error);
       });
@@ -347,12 +404,15 @@ document.addEventListener("DOMContentLoaded", function () {
   if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener("click", function () {
       if (!(window.pywebview && window.pywebview.api)) {
+        setSettingsStatus(
+          "Settings are unavailable — the backend API is not connected.",
+          true
+        );
         return;
       }
       var uploadsPathInput = document.getElementById("uploads-path");
       var labelImagesPathInput = document.getElementById("label-images-path");
       var fallbackEmailInput = document.getElementById("fallback-email");
-      var settingsStatus = document.getElementById("settings-status");
 
       var data = {
         uploads_path: uploadsPathInput ? uploadsPathInput.value : "",
@@ -360,14 +420,21 @@ document.addEventListener("DOMContentLoaded", function () {
         fallback_email: fallbackEmailInput ? fallbackEmailInput.value : "",
       };
 
+      saveSettingsBtn.disabled = true;
       window.pywebview.api.save_settings(data)
-        .then(function () {
-          if (settingsStatus) {
-            settingsStatus.textContent = "Settings saved.";
-          }
+        .then(function (persisted) {
+          // The backend returns the canonical persisted settings (with
+          // empty/invalid values replaced by defaults) — reflect them so
+          // the fields always show what will actually be used.
+          applySettingsToInputs(persisted);
+          setSettingsStatus("Settings saved.");
         })
         .catch(function (error) {
           console.error("Failed to save settings:", error);
+          setSettingsStatus("Failed to save settings.", true);
+        })
+        .finally(function () {
+          saveSettingsBtn.disabled = false;
         });
     });
   }
@@ -378,7 +445,16 @@ document.addEventListener("DOMContentLoaded", function () {
   // (no images, no error) if it isn't ready yet — so call them
   // immediately if the api is already there, and also listen for
   // pywebview's own ready event in case it becomes available afterward.
+  // The initialized flag makes this run-once: if the api was already
+  // present at DOMContentLoaded AND the pywebviewready event fires
+  // afterward, a second run would re-fetch the label images (dropping
+  // the user's tile selection) and clobber in-progress Settings edits.
+  var apiFeaturesInitialized = false;
   function initApiDependentFeatures() {
+    if (apiFeaturesInitialized) {
+      return;
+    }
+    apiFeaturesInitialized = true;
     loadLabelImages();
     loadSettings();
   }
