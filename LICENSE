@@ -1,0 +1,69 @@
+PROPRIETARY SOFTWARE LICENSE
+
+BradyForge
+
+Copyright (c) 2026 VRSI. All rights reserved.
+
+1. PROPRIETARY AND CONFIDENTIAL
+
+This software and all associated source code, object code, documentation,
+data files, and related materials (collectively, the "Software") are the
+proprietary and confidential property of VRSI ("Owner"). The Software is
+provided solely for internal use by VRSI employees, contractors, and
+authorized personnel in connection with VRSI's business operations.
+
+2. NOT OPEN SOURCE
+
+This is NOT an open-source license. The Software is not licensed under the
+MIT License, Apache License, GNU General Public License, or any other
+open-source or free-software license, and no rights or licenses under any
+such license are granted, implied, or to be inferred from anything in this
+file or elsewhere in this repository.
+
+3. NO GRANT OF RIGHTS OUTSIDE VRSI
+
+Except as expressly authorized in writing by VRSI, no person or entity is
+granted any right to:
+
+  a. copy, reproduce, or distribute the Software outside of VRSI's internal
+     operations;
+  b. redistribute, sell, lease, rent, sublicense, or otherwise transfer the
+     Software, in whole or in part, to any third party;
+  c. publish, disclose, or make the Software available to the public,
+     including via any public or third-party code repository, package
+     index, or hosting service;
+  d. use the Software for any purpose other than VRSI's internal, authorized
+     business operations; or
+  e. remove, obscure, or alter any copyright, proprietary, or confidentiality
+     notice contained in the Software.
+
+Any use, reproduction, modification, or distribution of the Software not
+expressly authorized in writing by VRSI is strictly prohibited and may
+result in disciplinary action and/or legal liability.
+
+4. INTERNAL USE ONLY
+
+Use of the Software is restricted to individuals who are current VRSI
+employees, contractors, or other personnel expressly authorized by VRSI, and
+only for as long as that authorization remains in effect. Access to the
+Software does not transfer any ownership interest in it.
+
+5. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+VRSI OR ITS CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+6. RESERVATION OF RIGHTS
+
+All rights not expressly granted herein are reserved by VRSI. Nothing in
+this license shall be construed as granting, by implication, estoppel, or
+otherwise, any license or right to any patent, trademark, trade secret, or
+other intellectual property of VRSI, except as expressly stated above.
+
+For questions regarding the terms of this license or requests for
+authorization beyond internal use, contact VRSI directly.
