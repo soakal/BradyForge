@@ -19,6 +19,7 @@ def test_html_contains_expected_tab_ids():
     content = app.HTML_PATH.read_text(encoding="utf-8")
     assert 'id="tab-generic"' in content
     assert 'id="tab-upload"' in content
+    assert 'id="tab-settings"' in content
 
 
 def _extract_panel(content, panel_id):
@@ -132,3 +133,36 @@ def test_upload_panel_has_no_script_tags():
 def test_index_html_has_no_script_tags_anywhere():
     content = app.HTML_PATH.read_text(encoding="utf-8")
     assert "<script" not in content
+
+
+def test_settings_panel_contains_expected_field_ids():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_generic = _extract_panel(content, "panel-generic")
+    panel_upload = _extract_panel(content, "panel-upload")
+    panel_settings = _extract_panel(content, "panel-settings")
+
+    expected_ids = [
+        "uploads-path",
+        "label-images-path",
+        "fallback-email",
+        "save-settings-btn",
+    ]
+    for field_id in expected_ids:
+        needle = f'id="{field_id}"'
+        assert needle in panel_settings, f"{needle} missing from #panel-settings"
+        assert needle not in panel_generic, f"{needle} unexpectedly found in #panel-generic"
+        assert needle not in panel_upload, f"{needle} unexpectedly found in #panel-upload"
+
+
+def test_settings_panel_fallback_email_is_email_input():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_settings = _extract_panel(content, "panel-settings")
+    fallback_email_tag = re.search(r'<input[^>]*id="fallback-email"[^>]*>', panel_settings)
+    assert fallback_email_tag and 'type="email"' in fallback_email_tag.group(0)
+
+
+def test_settings_panel_has_no_script_tags():
+    # This cycle only adds static markup — JS wiring is a future step.
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_settings = _extract_panel(content, "panel-settings")
+    assert "<script" not in panel_settings

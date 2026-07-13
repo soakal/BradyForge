@@ -34,6 +34,16 @@
         >
           Existing File Upload
         </button>
+        <button
+          type="button"
+          id="tab-settings"
+          class="tab-button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-settings"
+        >
+          Settings
+        </button>
       </nav>
     </header>
 
@@ -99,6 +109,28 @@
 
           <div class="form-actions">
             <button type="button" class="btn btn-primary" id="save-upload-btn">Upload</button>
+          </div>
+        </form>
+      </div>
+      <div id="panel-settings" class="tab-panel" role="tabpanel" aria-labelledby="tab-settings">
+        <form class="forge-form" id="settings-form">
+          <div class="form-grid">
+            <div class="form-field">
+              <label class="form-label" for="uploads-path">Uploads Folder Path</label>
+              <input class="form-input" type="text" id="uploads-path" name="uploads-path" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="label-images-path">Label Images Folder Path</label>
+              <input class="form-input" type="text" id="label-images-path" name="label-images-path" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="fallback-email">Fallback Email</label>
+              <input class="form-input" type="email" id="fallback-email" name="fallback-email" />
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" id="save-settings-btn">Save Settings</button>
           </div>
         </form>
       </div>
