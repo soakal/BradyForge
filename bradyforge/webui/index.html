@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BradyForge</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark">BF</span>
+        <span class="brand-name">BradyForge</span>
+      </div>
+      <nav class="tab-nav" role="tablist" aria-label="BradyForge sections">
+        <button
+          type="button"
+          id="tab-generic"
+          class="tab-button is-active"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-generic"
+        >
+          Generic Form
+        </button>
+        <button
+          type="button"
+          id="tab-upload"
+          class="tab-button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-upload"
+        >
+          Existing File Upload
+        </button>
+      </nav>
+    </header>
+
+    <main class="app-main">
+      <div id="panel-generic" class="tab-panel is-active" role="tabpanel" aria-labelledby="tab-generic">
+        <!-- Generic form fields land here in a future cycle. -->
+      </div>
+      <div id="panel-upload" class="tab-panel" role="tabpanel" aria-labelledby="tab-upload">
+        <!-- Existing-file upload controls land here in a future cycle. -->
+      </div>
+    </main>
+  </div>
+</body>
+</html>
