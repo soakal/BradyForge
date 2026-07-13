@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import openpyxl
+
 from bradyforge.api import Api
 from bradyforge.settings import default_settings
 
@@ -115,3 +117,61 @@ def test_accept_upload_filename_collision_gets_timestamp_suffix(tmp_path):
     assert saved_path.exists()
     # The pre-existing file must not have been overwritten.
     assert existing_path.read_text() == "existing upload"
+
+
+def test_submit_generic_labels_valid_rows_writes_workbook(tmp_path):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    rows = [
+        {"line1": "Widget A", "line2": "Part 123", "line3": "Rev 1", "qty": 10},
+        {"line1": "Widget B", "line2": "Part 456", "line3": "Rev 2", "qty": 5},
+    ]
+
+    api = Api()
+    result = api.submit_generic_labels(rows, "labels.xlsx", str(destination_dir))
+
+    assert result["ok"] is True
+    assert result["filename"] == "labels.xlsx"
+    saved_path = Path(result["saved_path"])
+    assert saved_path == destination_dir / "labels.xlsx"
+    assert saved_path.exists()
+
+    workbook = openpyxl.load_workbook(saved_path)
+    sheet = workbook.active
+    all_rows = list(sheet.iter_rows(min_row=1, values_only=True))
+    assert all_rows[0] == ("Line 1", "Line2", "Line3", "qty")
+    assert all_rows[1:] == [
+        (row["line1"], row["line2"], row["line3"], row["qty"]) for row in rows
+    ]
+
+
+def test_submit_generic_labels_empty_rows_returns_error_without_writing(tmp_path):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+
+    api = Api()
+    result = api.submit_generic_labels([], "labels.xlsx", str(destination_dir))
+
+    assert result["ok"] is False
+    assert "error" in result
+    assert list(destination_dir.iterdir()) == []
+
+
+def test_submit_generic_labels_filename_collision_gets_timestamp_suffix(tmp_path):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    existing_path = destination_dir / "labels.xlsx"
+    existing_path.write_text("existing labels")
+    rows = [{"line1": "Widget A", "line2": "Part 123", "line3": "Rev 1", "qty": 10}]
+
+    api = Api()
+    result = api.submit_generic_labels(rows, "labels.xlsx", str(destination_dir))
+
+    assert result["ok"] is True
+    assert result["filename"] != "labels.xlsx"
+    assert result["filename"].startswith("labels_")
+    assert result["filename"].endswith(".xlsx")
+    saved_path = Path(result["saved_path"])
+    assert saved_path.exists()
+    # The pre-existing file must not have been overwritten.
+    assert existing_path.read_text() == "existing labels"

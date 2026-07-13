@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 
 from bradyforge.filename_util import resolve_upload_filename
+from bradyforge.generic_writer import write_generic_workbook
 from bradyforge.settings import load_settings, save_settings
 from bradyforge.size_validator import FileTooLargeError, validate_upload_size
 from bradyforge.xlsx_validator import InvalidXlsxError, validate_xlsx_file
@@ -76,3 +77,29 @@ class Api:
         shutil.copy2(source_path, saved_path)
 
         return {"ok": True, "saved_path": str(saved_path), "filename": filename}
+
+    def submit_generic_labels(self, rows, filename, destination_dir):
+        """Write generic label `rows` to a new workbook in `destination_dir`.
+
+        Mirrors `accept_upload`'s pattern: resolves a collision-safe
+        destination filename via `resolve_upload_filename`, then writes the
+        workbook via `write_generic_workbook`, returning
+        `{"ok": True, "saved_path": ..., "filename": ...}`.
+
+        An empty `rows` list is treated as an expected failure and returned
+        as `{"ok": False, "error": <message>}` rather than raised, since the
+        future JS bridge can't catch raised Python exceptions. Any other
+        unexpected exception propagates normally.
+        """
+        if not rows:
+            return {"ok": False, "error": "No label rows provided."}
+
+        resolved_filename = resolve_upload_filename(destination_dir, filename)
+        saved_path = os.path.join(destination_dir, resolved_filename)
+        write_generic_workbook(rows, saved_path)
+
+        return {
+            "ok": True,
+            "saved_path": str(saved_path),
+            "filename": resolved_filename,
+        }
