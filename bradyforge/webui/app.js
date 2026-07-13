@@ -255,6 +255,65 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // Label picker — Api-wired live label-image tile loader for
+  // #panel-generic's #label-picker. Rendering is purely visual (a single
+  // selected tile toggles `is-selected`); wiring the selection into the
+  // Save flow is a future step.
+  function loadLabelImages() {
+    var labelPicker = document.getElementById("label-picker");
+    if (!labelPicker) {
+      return;
+    }
+    if (!(window.pywebview && window.pywebview.api)) {
+      return;
+    }
+
+    window.pywebview.api
+      .get_label_images()
+      .then(function (images) {
+        labelPicker.innerHTML = "";
+
+        if (!images || !images.length) {
+          var emptyMessage = document.createElement("span");
+          emptyMessage.className = "label-picker-placeholder";
+          emptyMessage.textContent = "No label images found.";
+          labelPicker.appendChild(emptyMessage);
+          return;
+        }
+
+        images.forEach(function (image) {
+          var tile = document.createElement("div");
+          tile.className = "label-tile";
+
+          var img = document.createElement("img");
+          img.src = image.data_url;
+          img.alt = image.filename;
+          img.title = image.filename;
+          tile.appendChild(img);
+
+          tile.addEventListener("click", function () {
+            var previouslySelected = labelPicker.querySelector(
+              ".label-tile.is-selected"
+            );
+            if (previouslySelected) {
+              previouslySelected.classList.remove("is-selected");
+            }
+            tile.classList.add("is-selected");
+          });
+
+          labelPicker.appendChild(tile);
+        });
+      })
+      .catch(function (error) {
+        console.error("Failed to load label images:", error);
+        labelPicker.innerHTML = "";
+        var errorMessage = document.createElement("span");
+        errorMessage.className = "label-picker-placeholder";
+        errorMessage.textContent = "Could not load label images.";
+        labelPicker.appendChild(errorMessage);
+      });
+  }
+
   function loadSettings() {
     if (!(window.pywebview && window.pywebview.api)) {
       return;
@@ -310,5 +369,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  loadLabelImages();
   loadSettings();
 });

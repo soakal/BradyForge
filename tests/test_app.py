@@ -368,3 +368,53 @@ def test_app_js_generic_wiring_references_field_ids():
     generic_section = _extract_generic_wiring_section(content)
     for field_id in ("name", "department", "line1", "line2", "line3", "quantity"):
         assert field_id in generic_section, f"{field_id!r} missing from generic wiring section"
+
+
+def _extract_label_picker_wiring_section(content):
+    """Return the app.js slice that wires up the live label-image picker.
+
+    Bounded by the "Label picker" comment marker (start of this cycle's
+    additions) and the `loadSettings` function definition (start of the
+    pre-existing Settings wiring), mirroring the boundary convention used
+    by `_extract_upload_wiring_section`.
+    """
+    start = content.index("// Label picker")
+    end = content.index("function loadSettings")
+    assert end > start
+    return content[start:end]
+
+
+def test_app_js_label_picker_calls_get_label_images():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    label_picker_section = _extract_label_picker_wiring_section(content)
+    assert "get_label_images(" in label_picker_section
+    assert "label-picker" in label_picker_section
+    assert "pywebview" in label_picker_section
+
+
+def test_app_js_label_picker_has_selection_toggle():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    label_picker_section = _extract_label_picker_wiring_section(content)
+    assert "is-selected" in label_picker_section
+
+
+def test_app_js_label_picker_has_no_images_fallback_message():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    label_picker_section = _extract_label_picker_wiring_section(content)
+    assert "No label images found." in label_picker_section
+
+
+def test_app_js_label_picker_has_error_fallback_message():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    label_picker_section = _extract_label_picker_wiring_section(content)
+    assert "Could not load label images." in label_picker_section
+
+
+def test_app_js_calls_load_label_images_alongside_load_settings():
+    # loadLabelImages() must be invoked in the same page-load
+    # initialization context as loadSettings() (i.e. inside the
+    # DOMContentLoaded listener, near its final loadSettings() call).
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    tail = content[content.rindex("function loadSettings") :]
+    assert "loadLabelImages();" in tail
+    assert "loadSettings();" in tail

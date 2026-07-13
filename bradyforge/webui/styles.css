@@ -212,8 +212,10 @@ body {
 
 .label-picker {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+  gap: 12px;
   min-height: 96px;
   border: 1px dashed var(--color-slate-100);
   border-radius: var(--radius-md);
@@ -224,6 +226,35 @@ body {
 .label-picker-placeholder {
   color: var(--color-slate-400);
   font-size: 13px;
+}
+
+.label-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border: 1px solid var(--color-slate-100);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  padding: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.label-tile:hover {
+  border-color: var(--color-amber-500);
+}
+
+.label-tile.is-selected {
+  border-color: var(--color-amber-500);
+  box-shadow: 0 0 0 3px var(--color-amber-100);
+}
+
+.label-tile img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .form-actions {
