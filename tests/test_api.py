@@ -341,6 +341,33 @@ def test_submit_generic_labels_unreachable_destination_falls_back_to_local_zip(
     ]
 
 
+def test_submit_generic_labels_without_destination_dir_uses_config_uploads_path(
+    tmp_path, monkeypatch
+):
+    default_destination_dir = tmp_path / "default_destination"
+    default_destination_dir.mkdir()
+    monkeypatch.setattr(
+        bradyforge.config, "UPLOADS_PATH", str(default_destination_dir)
+    )
+    rows = [{"line1": "Widget A", "line2": "Part 123", "line3": "Rev 1", "qty": 10}]
+
+    api = Api()
+    result = api.submit_generic_labels(rows, "labels.xlsx")
+
+    assert result["ok"] is True
+    saved_path = Path(result["saved_path"])
+    assert saved_path == default_destination_dir / "labels.xlsx"
+    assert saved_path.exists()
+
+    workbook = openpyxl.load_workbook(saved_path)
+    sheet = workbook.active
+    all_rows = list(sheet.iter_rows(min_row=1, values_only=True))
+    assert all_rows[0] == ("Line 1", "Line2", "Line3", "qty")
+    assert all_rows[1:] == [
+        (row["line1"], row["line2"], row["line3"], row["qty"]) for row in rows
+    ]
+
+
 def test_submit_generic_labels_filename_collision_gets_timestamp_suffix(tmp_path):
     destination_dir = tmp_path / "destination"
     destination_dir.mkdir()

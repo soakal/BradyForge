@@ -154,7 +154,7 @@ class Api:
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def submit_generic_labels(self, rows, filename, destination_dir):
+    def submit_generic_labels(self, rows, filename, destination_dir=None):
         """Write generic label `rows` to a new workbook in `destination_dir`.
 
         Mirrors `accept_upload`'s pattern: resolves a collision-safe
@@ -176,7 +176,15 @@ class Api:
         `self.fallback_dir`), and the result reflects the fallback with
         `{"ok": True, "fallback": True, "local_path": ..., "zip_path": ...,
         "message": ...}`.
+
+        `destination_dir` is optional; when omitted (or `None`), it defaults
+        to `bradyforge.config.UPLOADS_PATH`, so callers don't need to know or
+        pass the real uploads location.
         """
+        destination_dir = (
+            destination_dir if destination_dir is not None else config.UPLOADS_PATH
+        )
+
         if not rows:
             return {"ok": False, "error": "No label rows provided."}
 
