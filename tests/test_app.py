@@ -308,11 +308,22 @@ def _extract_upload_wiring_section(content):
     return content[start:end]
 
 
-def test_app_js_upload_wiring_does_not_call_backend_api():
-    # This cycle is front-end file selection/validation only — no Api
-    # calls for the Upload panel yet (a future cycle wires accept_upload).
+def test_app_js_upload_wiring_calls_accept_upload_bytes():
+    # The Upload panel's Save button now calls the backend via
+    # accept_upload_bytes, reading the selected file as a data URL and
+    # branching on the result's ok/fallback flags.
     content = APP_JS_PATH.read_text(encoding="utf-8")
-    assert "accept_upload" not in content
     upload_section = _extract_upload_wiring_section(content)
-    assert ".api." not in upload_section
-    assert "pywebview" not in upload_section
+    assert "accept_upload_bytes(" in upload_section
+    assert "readAsDataURL(" in upload_section
+    assert "FileReader" in upload_section
+    assert ".ok" in upload_section
+    assert ".fallback" in upload_section
+    assert "pywebview" in upload_section
+
+
+def test_app_js_upload_placeholder_message_removed():
+    # The old "connecting to backend in a future step" placeholder must be
+    # gone now that the upload actually calls the backend.
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    assert "connecting to backend in a future step" not in content

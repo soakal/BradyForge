@@ -141,7 +141,41 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      setUploadStatus("Ready to upload — connecting to backend in a future step.");
+      if (!(window.pywebview && window.pywebview.api)) {
+        setUploadStatus("Upload is unavailable — the backend API is not connected.", true);
+        return;
+      }
+
+      setUploadStatus("Uploading…");
+
+      var reader = new FileReader();
+      reader.onload = function () {
+        window.pywebview.api
+          .accept_upload_bytes(selectedUploadFile.name, reader.result)
+          .then(function (result) {
+            result = result || {};
+            if (!result.ok) {
+              setUploadStatus(result.error || "Upload failed.", true);
+            } else if (result.fallback) {
+              setUploadStatus(
+                result.message || "Upload saved to a local fallback location."
+              );
+            } else {
+              setUploadStatus(
+                "Upload successful: " + (result.filename || selectedUploadFile.name) +
+                  (result.saved_path ? " (" + result.saved_path + ")" : "")
+              );
+            }
+          })
+          .catch(function (error) {
+            console.error("Failed to upload file:", error);
+            setUploadStatus("Upload failed due to an unexpected error.", true);
+          });
+      };
+      reader.onerror = function () {
+        setUploadStatus("The selected file could not be read.", true);
+      };
+      reader.readAsDataURL(selectedUploadFile);
     });
   }
 
