@@ -251,3 +251,68 @@ def test_app_js_has_balanced_braces():
     content = APP_JS_PATH.read_text(encoding="utf-8")
     assert content.count("{") == content.count("}")
     assert content.count("(") == content.count(")")
+
+
+def test_upload_panel_has_status_element():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_upload = _extract_panel(content, "panel-upload")
+    assert 'id="upload-status"' in panel_upload
+
+
+def test_app_js_references_upload_dom_ids():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    for field_id in (
+        "upload-dropzone",
+        "file-input",
+        "upload-name",
+        "upload-department",
+        "save-upload-btn",
+        "upload-status",
+    ):
+        assert field_id in content, f"{field_id!r} missing from app.js"
+
+
+def test_app_js_wires_dropzone_click_and_drag_events():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    assert '"drop"' in content
+    assert '"dragover"' in content
+    assert '"dragleave"' in content
+    assert '"change"' in content
+
+
+def test_app_js_checks_xlsx_extension_case_insensitively():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    assert re.search(r"\.xlsx", content, re.IGNORECASE)
+    # The extension check itself must be case-insensitive (e.g. a regex
+    # with the /i flag, or an equivalent .toLowerCase() comparison).
+    assert re.search(r"xlsx\$/i", content) or "toLowerCase" in content
+
+
+def test_app_js_enforces_25mb_size_limit():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    assert "26214400" in content or "25 * 1024 * 1024" in content
+
+
+def _extract_upload_wiring_section(content):
+    """Return the app.js slice that wires up the Upload panel.
+
+    Bounded by the "Upload panel" comment marker (start of this cycle's
+    additions) and the `loadSettings` function definition (start of the
+    pre-existing Settings wiring), so we can assert this cycle's new code
+    doesn't sneak in an Api call without being thrown off by the
+    already-legitimate `window.pywebview.api.*` calls used by Settings.
+    """
+    start = content.index("// Upload panel — client-side")
+    end = content.index("function loadSettings")
+    assert end > start
+    return content[start:end]
+
+
+def test_app_js_upload_wiring_does_not_call_backend_api():
+    # This cycle is front-end file selection/validation only — no Api
+    # calls for the Upload panel yet (a future cycle wires accept_upload).
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    assert "accept_upload" not in content
+    upload_section = _extract_upload_wiring_section(content)
+    assert ".api." not in upload_section
+    assert "pywebview" not in upload_section

@@ -1,8 +1,11 @@
-// BradyForge webui — tab switching and Settings Api-bridge wiring.
+// BradyForge webui — tab switching, Settings Api-bridge wiring, and
+// Upload panel file selection/validation.
 //
 // Pure DOM manipulation, no framework. The Settings panel is wired to
-// `window.pywebview.api` (`get_settings` / `save_settings`); other panels'
-// Api wiring is deliberately out of scope for this cycle.
+// `window.pywebview.api` (`get_settings` / `save_settings`). The Upload
+// panel's file picker, drag-and-drop, and client-side validation are
+// wired here too, but the Upload panel does not call any backend Api
+// method this cycle — that wiring is deliberately out of scope for now.
 
 document.addEventListener("DOMContentLoaded", function () {
   var tabs = [
@@ -36,6 +39,111 @@ document.addEventListener("DOMContentLoaded", function () {
       activate(entry.tabId);
     });
   });
+
+  // Upload panel — client-side file selection and validation only.
+  // No Api calls here; wiring the actual upload is a future step.
+  var MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
+  var selectedUploadFile = null;
+
+  function setUploadStatus(message, isError) {
+    var uploadStatus = document.getElementById("upload-status");
+    if (!uploadStatus) {
+      return;
+    }
+    uploadStatus.textContent = message;
+    uploadStatus.classList.toggle("is-error", !!isError);
+  }
+
+  function isXlsxFilename(filename) {
+    return /\.xlsx$/i.test(filename || "");
+  }
+
+  function handleSelectedUploadFile(file) {
+    if (!file) {
+      return;
+    }
+
+    if (!isXlsxFilename(file.name)) {
+      selectedUploadFile = null;
+      setUploadStatus("Please select a .xlsx file.", true);
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      selectedUploadFile = null;
+      setUploadStatus("File is too large. The maximum upload size is 25MB.", true);
+      return;
+    }
+
+    selectedUploadFile = file;
+    var dropzoneText = document.querySelector("#upload-dropzone .dropzone-text");
+    if (dropzoneText) {
+      dropzoneText.textContent = file.name;
+    }
+    setUploadStatus("Selected file: " + file.name);
+  }
+
+  var uploadDropzone = document.getElementById("upload-dropzone");
+  var fileInput = document.getElementById("file-input");
+
+  if (uploadDropzone) {
+    uploadDropzone.addEventListener("click", function () {
+      if (fileInput) {
+        fileInput.click();
+      }
+    });
+
+    uploadDropzone.addEventListener("dragover", function (event) {
+      event.preventDefault();
+      uploadDropzone.classList.add("is-dragover");
+    });
+
+    uploadDropzone.addEventListener("dragleave", function () {
+      uploadDropzone.classList.remove("is-dragover");
+    });
+
+    uploadDropzone.addEventListener("drop", function (event) {
+      event.preventDefault();
+      uploadDropzone.classList.remove("is-dragover");
+      var droppedFile =
+        event.dataTransfer && event.dataTransfer.files
+          ? event.dataTransfer.files[0]
+          : null;
+      handleSelectedUploadFile(droppedFile);
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener("change", function (event) {
+      handleSelectedUploadFile(event.target.files[0]);
+    });
+  }
+
+  var saveUploadBtn = document.getElementById("save-upload-btn");
+  if (saveUploadBtn) {
+    saveUploadBtn.addEventListener("click", function () {
+      var uploadNameInput = document.getElementById("upload-name");
+      var uploadDepartmentInput = document.getElementById("upload-department");
+
+      var name = uploadNameInput ? uploadNameInput.value.trim() : "";
+      var department = uploadDepartmentInput ? uploadDepartmentInput.value.trim() : "";
+
+      if (!name || !department) {
+        setUploadStatus("Name and Department are required.", true);
+        return;
+      }
+
+      if (!selectedUploadFile) {
+        setUploadStatus(
+          "Please select a valid .xlsx file (max 25MB) before uploading.",
+          true
+        );
+        return;
+      }
+
+      setUploadStatus("Ready to upload — connecting to backend in a future step.");
+    });
+  }
 
   function loadSettings() {
     if (!(window.pywebview && window.pywebview.api)) {
