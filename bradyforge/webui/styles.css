@@ -231,6 +231,44 @@ body {
   justify-content: flex-end;
 }
 
+/* Upload dropzone */
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 140px;
+  border: 2px dashed var(--color-slate-300);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.dropzone:hover {
+  border-color: var(--color-amber-500);
+  background: var(--color-amber-100);
+}
+
+.dropzone.is-dragover {
+  border-color: var(--color-amber-500);
+  background: var(--color-amber-100);
+  box-shadow: 0 0 0 3px var(--color-amber-100);
+}
+
+.dropzone-text {
+  color: var(--color-slate-400);
+  font-size: 14px;
+}
+
+.dropzone-input {
+  display: none;
+}
+
 .btn {
   appearance: none;
   border: none;

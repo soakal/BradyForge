@@ -85,3 +85,50 @@ def test_generic_panel_has_no_script_tags():
     content = app.HTML_PATH.read_text(encoding="utf-8")
     panel_generic = _extract_panel(content, "panel-generic")
     assert "<script" not in panel_generic
+
+
+def test_upload_panel_contains_expected_field_ids():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_generic = _extract_panel(content, "panel-generic")
+    panel_upload = _extract_panel(content, "panel-upload")
+
+    expected_ids = [
+        "upload-dropzone",
+        "file-input",
+        "upload-name",
+        "upload-department",
+        "save-upload-btn",
+    ]
+    for field_id in expected_ids:
+        needle = f'id="{field_id}"'
+        assert needle in panel_upload, f"{needle} missing from #panel-upload"
+        assert needle not in panel_generic, f"{needle} unexpectedly found in #panel-generic"
+
+
+def test_upload_panel_required_fields():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_upload = _extract_panel(content, "panel-upload")
+    name_tag = re.search(r'<input[^>]*id="upload-name"[^>]*>', panel_upload)
+    department_tag = re.search(r'<input[^>]*id="upload-department"[^>]*>', panel_upload)
+    assert name_tag and "required" in name_tag.group(0)
+    assert department_tag and "required" in department_tag.group(0)
+
+
+def test_upload_panel_file_input_accepts_xlsx():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_upload = _extract_panel(content, "panel-upload")
+    file_input_tag = re.search(r'<input[^>]*id="file-input"[^>]*>', panel_upload)
+    assert file_input_tag and 'type="file"' in file_input_tag.group(0)
+    assert file_input_tag and 'accept=".xlsx"' in file_input_tag.group(0)
+
+
+def test_upload_panel_has_no_script_tags():
+    # This cycle only adds static markup — JS wiring is a future step.
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_upload = _extract_panel(content, "panel-upload")
+    assert "<script" not in panel_upload
+
+
+def test_index_html_has_no_script_tags_anywhere():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    assert "<script" not in content

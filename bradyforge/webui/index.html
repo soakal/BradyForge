@@ -80,7 +80,27 @@
         </form>
       </div>
       <div id="panel-upload" class="tab-panel" role="tabpanel" aria-labelledby="tab-upload">
-        <!-- Existing-file upload controls land here in a future cycle. -->
+        <form class="forge-form" id="upload-form">
+          <div class="dropzone" id="upload-dropzone">
+            <span class="dropzone-text">Drag and drop your completed .xlsx here, or click to browse</span>
+            <input class="dropzone-input" type="file" id="file-input" name="file-input" accept=".xlsx" hidden />
+          </div>
+
+          <div class="form-grid">
+            <div class="form-field">
+              <label class="form-label" for="upload-name">Name<span class="form-required">*</span></label>
+              <input class="form-input" type="text" id="upload-name" name="upload-name" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="upload-department">Department<span class="form-required">*</span></label>
+              <input class="form-input" type="text" id="upload-department" name="upload-department" required />
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" id="save-upload-btn">Upload</button>
+          </div>
+        </form>
       </div>
     </main>
   </div>
