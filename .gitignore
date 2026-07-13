@@ -7,3 +7,8 @@ build/
 *.spec
 *.log
 .council/state/
+
+# release/ holds packaged build output (PyInstaller .exe, signing certs, etc.);
+# only the README documenting the folder is tracked.
+release/*
+!release/README.md
