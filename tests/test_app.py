@@ -446,3 +446,15 @@ def test_app_js_calls_load_label_images_alongside_load_settings():
     tail = content[content.rindex("function loadSettings") :]
     assert "loadLabelImages();" in tail
     assert "loadSettings();" in tail
+
+
+def test_app_js_retries_api_dependent_features_on_pywebviewready():
+    # window.pywebview.api is injected asynchronously by pywebview and
+    # may not exist yet at DOMContentLoaded; loadLabelImages()/
+    # loadSettings() must also be wired to fire on pywebview's own
+    # "ready" event so they aren't silently skipped if the api becomes
+    # available after DOMContentLoaded already ran.
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    tail = content[content.rindex("function loadSettings") :]
+    assert "pywebviewready" in tail
+    assert "addEventListener" in tail

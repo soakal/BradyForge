@@ -372,6 +372,19 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  loadLabelImages();
-  loadSettings();
+  // window.pywebview.api is injected asynchronously by pywebview and may
+  // not exist yet when DOMContentLoaded fires. loadLabelImages()/
+  // loadSettings() both guard on the api's presence and silently return
+  // (no images, no error) if it isn't ready yet — so call them
+  // immediately if the api is already there, and also listen for
+  // pywebview's own ready event in case it becomes available afterward.
+  function initApiDependentFeatures() {
+    loadLabelImages();
+    loadSettings();
+  }
+
+  if (window.pywebview && window.pywebview.api) {
+    initApiDependentFeatures();
+  }
+  window.addEventListener("pywebviewready", initApiDependentFeatures);
 });
