@@ -8,6 +8,7 @@ plain Python and every method must be directly unit-testable as a
 normal method call, without a live webview.
 """
 
+import io
 import os
 import shutil
 from pathlib import Path
@@ -122,13 +123,40 @@ class Api:
         as `{"ok": False, "error": <message>}` rather than raised, since the
         future JS bridge can't catch raised Python exceptions. Any other
         unexpected exception propagates normally.
+
+        If `destination_dir` turns out to be unreachable (e.g. an offline
+        network share), the collision-resolve + write attempt raises
+        `OSError`/`PermissionError`. That is caught here and treated as a
+        fallback case, mirroring `accept_upload`: the generated workbook's
+        bytes are saved locally and zipped via
+        `bradyforge.fallback_saver.save_local_and_zip` (into
+        `self.fallback_dir`), and the result reflects the fallback with
+        `{"ok": True, "fallback": True, "local_path": ..., "zip_path": ...,
+        "message": ...}`.
         """
         if not rows:
             return {"ok": False, "error": "No label rows provided."}
 
-        resolved_filename = resolve_upload_filename(destination_dir, filename)
-        saved_path = os.path.join(destination_dir, resolved_filename)
-        write_generic_workbook(rows, saved_path)
+        buffer = io.BytesIO()
+        write_generic_workbook(rows, buffer)
+        source_bytes = buffer.getvalue()
+
+        try:
+            resolved_filename = resolve_upload_filename(destination_dir, filename)
+            saved_path = os.path.join(destination_dir, resolved_filename)
+            with open(saved_path, "wb") as f:
+                f.write(source_bytes)
+        except (OSError, PermissionError):
+            fallback_result = save_local_and_zip(
+                source_bytes, filename, self.fallback_dir
+            )
+            return {
+                "ok": True,
+                "fallback": True,
+                "local_path": fallback_result.local_path,
+                "zip_path": fallback_result.zip_path,
+                "message": fallback_result.message,
+            }
 
         return {
             "ok": True,

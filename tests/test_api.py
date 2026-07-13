@@ -1,3 +1,4 @@
+import io
 import zipfile
 from pathlib import Path
 
@@ -187,6 +188,48 @@ def test_submit_generic_labels_empty_rows_returns_error_without_writing(tmp_path
     assert result["ok"] is False
     assert "error" in result
     assert list(destination_dir.iterdir()) == []
+
+
+def test_submit_generic_labels_unreachable_destination_falls_back_to_local_zip(
+    tmp_path,
+):
+    # A file (not a directory) standing in for the destination, so writing
+    # into it as if it were a directory genuinely raises OSError.
+    destination_dir = tmp_path / "destination_is_a_file"
+    destination_dir.write_text("not a directory")
+
+    fallback_dir = tmp_path / "fallback"
+    rows = [
+        {"line1": "Widget A", "line2": "Part 123", "line3": "Rev 1", "qty": 10},
+        {"line1": "Widget B", "line2": "Part 456", "line3": "Rev 2", "qty": 5},
+    ]
+
+    api = Api(fallback_dir=fallback_dir)
+    result = api.submit_generic_labels(rows, "labels.xlsx", str(destination_dir))
+
+    assert result["ok"] is True
+    assert result["fallback"] is True
+    assert "message" in result
+
+    zip_path = Path(result["zip_path"])
+    assert zip_path.exists()
+
+    local_path = Path(result["local_path"])
+    assert local_path.exists()
+
+    with zipfile.ZipFile(zip_path) as zf:
+        names = zf.namelist()
+        assert len(names) == 1
+        assert names[0] == "labels.xlsx"
+        workbook_bytes = zf.read(names[0])
+
+    workbook = openpyxl.load_workbook(io.BytesIO(workbook_bytes))
+    sheet = workbook.active
+    all_rows = list(sheet.iter_rows(min_row=1, values_only=True))
+    assert all_rows[0] == ("Line 1", "Line2", "Line3", "qty")
+    assert all_rows[1:] == [
+        (row["line1"], row["line2"], row["line3"], row["qty"]) for row in rows
+    ]
 
 
 def test_submit_generic_labels_filename_collision_gets_timestamp_suffix(tmp_path):
