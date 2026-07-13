@@ -215,11 +215,34 @@ def test_app_js_references_all_tab_and_panel_ids():
         assert panel_id in content, f"{panel_id!r} missing from app.js"
 
 
-def test_app_js_has_no_pywebview_api_calls():
-    # Wiring window.pywebview.api is out of scope for this cycle.
+def test_app_js_calls_settings_api_methods():
+    # Settings load/save is wired to window.pywebview.api this cycle.
     content = APP_JS_PATH.read_text(encoding="utf-8")
-    assert "window.pywebview" not in content
-    assert ".api." not in content
+    assert "window.pywebview.api.get_settings" in content
+    assert "window.pywebview.api.save_settings" in content
+
+
+def test_app_js_references_settings_dict_keys():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    for key in ("uploads_path", "label_images_path", "fallback_email"):
+        assert key in content, f"{key!r} missing from app.js"
+
+
+def test_app_js_references_settings_dom_ids():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    for field_id in (
+        "uploads-path",
+        "label-images-path",
+        "fallback-email",
+        "save-settings-btn",
+    ):
+        assert field_id in content, f"{field_id!r} missing from app.js"
+
+
+def test_settings_panel_has_status_element():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    panel_settings = _extract_panel(content, "panel-settings")
+    assert 'id="settings-status"' in panel_settings
 
 
 def test_app_js_has_balanced_braces():
