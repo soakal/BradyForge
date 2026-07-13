@@ -15,6 +15,8 @@ once the UI has more than a static shell.
 
 from pathlib import Path
 
+from bradyforge.api import Api
+
 # Path to the static HTML shell loaded by the webview window.
 HTML_PATH = Path(__file__).resolve().parent / "webui" / "index.html"
 
@@ -28,4 +30,5 @@ def create_window():
     """
     import webview
 
-    return webview.create_window("BradyForge", url=str(HTML_PATH))
+    api = Api()
+    return webview.create_window("BradyForge", url=str(HTML_PATH), js_api=api)

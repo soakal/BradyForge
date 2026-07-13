@@ -1,7 +1,9 @@
 import re
 import sys
+from unittest.mock import MagicMock
 
 import bradyforge.app as app
+from bradyforge.api import Api
 
 
 def test_import_does_not_require_webview():
@@ -9,6 +11,21 @@ def test_import_does_not_require_webview():
     # installed in this environment; webview must only be imported lazily
     # inside create_window(), never at module import time.
     assert "webview" not in sys.modules
+
+
+def test_create_window_passes_api_as_js_api(monkeypatch):
+    sentinel = object()
+    fake_webview = MagicMock()
+    fake_webview.create_window.return_value = sentinel
+    monkeypatch.setitem(sys.modules, "webview", fake_webview)
+
+    result = app.create_window()
+
+    fake_webview.create_window.assert_called_once()
+    _, kwargs = fake_webview.create_window.call_args
+    assert kwargs["url"] == str(app.HTML_PATH)
+    assert isinstance(kwargs["js_api"], Api)
+    assert result is sentinel
 
 
 def test_html_path_exists():
