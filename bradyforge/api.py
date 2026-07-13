@@ -15,6 +15,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from bradyforge import config
 from bradyforge.fallback_saver import save_local_and_zip
 from bradyforge.filename_util import resolve_upload_filename
 from bradyforge.generic_writer import write_generic_workbook
@@ -62,7 +63,7 @@ class Api:
         save_settings(data, self.settings_path)
         return self.get_settings()
 
-    def accept_upload(self, source_path, destination_dir):
+    def accept_upload(self, source_path, destination_dir=None):
         """Validate and copy an uploaded workbook into `destination_dir`.
 
         Runs `source_path` through `validate_xlsx_file` (genuine, non-corrupted
@@ -84,7 +85,15 @@ class Api:
         `self.fallback_dir`), and the result reflects the fallback with
         `{"ok": True, "fallback": True, "local_path": ..., "zip_path": ...,
         "message": ...}`.
+
+        `destination_dir` is optional; when omitted (or `None`), it defaults
+        to `bradyforge.config.UPLOADS_PATH`, so callers don't need to know or
+        pass the real uploads location.
         """
+        destination_dir = (
+            destination_dir if destination_dir is not None else config.UPLOADS_PATH
+        )
+
         try:
             validate_xlsx_file(source_path)
             validate_upload_size(source_path)
@@ -113,7 +122,7 @@ class Api:
 
         return {"ok": True, "saved_path": str(saved_path), "filename": filename}
 
-    def accept_upload_bytes(self, filename, base64_content, destination_dir):
+    def accept_upload_bytes(self, filename, base64_content, destination_dir=None):
         """Base64-transport variant of `accept_upload` for the JS bridge.
 
         JS reads the uploaded `File` via `FileReader.readAsDataURL()` (or
@@ -127,6 +136,10 @@ class Api:
         collision-safe copying, and fallback handling. The temp directory is
         always removed afterward, regardless of whether `accept_upload`
         succeeds, returns an error, or raises.
+
+        `destination_dir` is optional; when omitted (or `None`), it is passed
+        through unchanged to `accept_upload`, which resolves the default
+        (`bradyforge.config.UPLOADS_PATH`) itself.
         """
         if "," in base64_content:
             _, _, base64_content = base64_content.partition(",")

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import openpyxl
 
+import bradyforge.config
 from bradyforge.api import Api
 from bradyforge.settings import default_settings
 
@@ -151,6 +152,49 @@ def test_accept_upload_unreachable_destination_falls_back_to_local_zip(tmp_path)
         names = zf.namelist()
         assert len(names) == 1
         assert zf.read(names[0]) == source_path.read_bytes()
+
+
+def test_accept_upload_without_destination_dir_uses_config_uploads_path(
+    tmp_path, monkeypatch
+):
+    default_destination_dir = tmp_path / "default_destination"
+    default_destination_dir.mkdir()
+    monkeypatch.setattr(
+        bradyforge.config, "UPLOADS_PATH", str(default_destination_dir)
+    )
+    source_path = tmp_path / "source" / "report.xlsx"
+    source_path.parent.mkdir()
+    source_path.write_bytes(SAMPLE_MULTI_TAB_PATH.read_bytes())
+
+    api = Api()
+    result = api.accept_upload(str(source_path))
+
+    assert result["ok"] is True
+    saved_path = Path(result["saved_path"])
+    assert saved_path == default_destination_dir / "report.xlsx"
+    assert saved_path.exists()
+    assert saved_path.read_bytes() == source_path.read_bytes()
+
+
+def test_accept_upload_bytes_without_destination_dir_uses_config_uploads_path(
+    tmp_path, monkeypatch
+):
+    default_destination_dir = tmp_path / "default_destination"
+    default_destination_dir.mkdir()
+    monkeypatch.setattr(
+        bradyforge.config, "UPLOADS_PATH", str(default_destination_dir)
+    )
+    source_bytes = SAMPLE_MULTI_TAB_PATH.read_bytes()
+    encoded = base64.b64encode(source_bytes).decode("ascii")
+
+    api = Api()
+    result = api.accept_upload_bytes("report.xlsx", encoded)
+
+    assert result["ok"] is True
+    saved_path = Path(result["saved_path"])
+    assert saved_path == default_destination_dir / "report.xlsx"
+    assert saved_path.exists()
+    assert saved_path.read_bytes() == source_bytes
 
 
 def test_accept_upload_bytes_valid_xlsx_copies_file(tmp_path, monkeypatch):
