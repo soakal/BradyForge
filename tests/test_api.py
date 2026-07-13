@@ -386,3 +386,88 @@ def test_submit_generic_labels_filename_collision_gets_timestamp_suffix(tmp_path
     assert saved_path.exists()
     # The pre-existing file must not have been overwritten.
     assert existing_path.read_text() == "existing labels"
+
+
+def test_get_label_images_with_explicit_dir_returns_data_urls(tmp_path):
+    images_dir = tmp_path / "images"
+    images_dir.mkdir()
+    png_bytes = b"fake-png-bytes-123"
+    jpg_bytes = b"fake-jpg-bytes-456"
+    gif_bytes = b"fake-gif-bytes-789"
+    (images_dir / "b.png").write_bytes(png_bytes)
+    (images_dir / "a.jpg").write_bytes(jpg_bytes)
+    (images_dir / "c.gif").write_bytes(gif_bytes)
+
+    api = Api()
+    result = api.get_label_images(str(images_dir))
+
+    assert [entry["filename"] for entry in result] == ["a.jpg", "b.png", "c.gif"]
+
+    by_filename = {entry["filename"]: entry["data_url"] for entry in result}
+
+    assert by_filename["a.jpg"].startswith("data:image/jpeg;base64,")
+    assert by_filename["b.png"].startswith("data:image/png;base64,")
+    assert by_filename["c.gif"].startswith("data:image/gif;base64,")
+
+    for filename, expected_bytes in (
+        ("a.jpg", jpg_bytes),
+        ("b.png", png_bytes),
+        ("c.gif", gif_bytes),
+    ):
+        _, _, encoded = by_filename[filename].partition("base64,")
+        assert base64.b64decode(encoded) == expected_bytes
+
+
+def test_get_label_images_without_images_dir_uses_config_label_images_path(
+    tmp_path, monkeypatch
+):
+    default_images_dir = tmp_path / "default_images"
+    default_images_dir.mkdir()
+    monkeypatch.setattr(
+        bradyforge.config, "LABEL_IMAGES_PATH", str(default_images_dir)
+    )
+    image_bytes = b"fake-bmp-bytes"
+    (default_images_dir / "logo.bmp").write_bytes(image_bytes)
+
+    api = Api()
+    result = api.get_label_images()
+
+    assert len(result) == 1
+    assert result[0]["filename"] == "logo.bmp"
+    assert result[0]["data_url"].startswith("data:image/bmp;base64,")
+    _, _, encoded = result[0]["data_url"].partition("base64,")
+    assert base64.b64decode(encoded) == image_bytes
+
+
+def test_get_label_images_empty_directory_returns_empty_list(tmp_path):
+    images_dir = tmp_path / "images"
+    images_dir.mkdir()
+
+    api = Api()
+    result = api.get_label_images(str(images_dir))
+
+    assert result == []
+
+
+def test_get_label_images_skips_unreadable_file_without_raising(tmp_path, monkeypatch):
+    images_dir = tmp_path / "images"
+    images_dir.mkdir()
+    good_bytes = b"good-png-bytes"
+    (images_dir / "good.png").write_bytes(good_bytes)
+    (images_dir / "bad.png").write_bytes(b"bad-png-bytes")
+
+    real_open = open
+
+    def flaky_open(file, *args, **kwargs):
+        if str(file).endswith("bad.png"):
+            raise OSError("simulated unreadable file")
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", flaky_open)
+
+    api = Api()
+    result = api.get_label_images(str(images_dir))
+
+    assert [entry["filename"] for entry in result] == ["good.png"]
+    _, _, encoded = result[0]["data_url"].partition("base64,")
+    assert base64.b64decode(encoded) == good_bytes

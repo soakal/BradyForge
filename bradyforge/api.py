@@ -19,9 +19,20 @@ from bradyforge import config
 from bradyforge.fallback_saver import save_local_and_zip
 from bradyforge.filename_util import resolve_upload_filename
 from bradyforge.generic_writer import write_generic_workbook
+from bradyforge.label_images import list_label_images
 from bradyforge.settings import load_settings, save_settings
 from bradyforge.size_validator import FileTooLargeError, validate_upload_size
 from bradyforge.xlsx_validator import InvalidXlsxError, validate_xlsx_file
+
+# Extension -> MIME type map used by `Api.get_label_images` to build data
+# URLs. Kept in sync with `bradyforge.label_images.IMAGE_EXTENSIONS`.
+_LABEL_IMAGE_MIME_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+}
 
 # Default per-user location for the settings file. Never touched at
 # import time or in `Api.__init__` — only read/written lazily when
@@ -214,3 +225,43 @@ class Api:
             "saved_path": str(saved_path),
             "filename": resolved_filename,
         }
+
+    def get_label_images(self, images_dir=None):
+        """Return renderable label images found in `images_dir`.
+
+        Delegates filename discovery to
+        `bradyforge.label_images.list_label_images`, then reads and
+        base64-encodes each file's bytes into a `data:` URL suitable for
+        direct use as an `<img>` `src` in the JS front end. Returns a list
+        of `{"filename": ..., "data_url": ...}` dicts, in the same
+        (sorted) order `list_label_images` returned.
+
+        If an individual file can't be read (e.g. it disappears or
+        becomes unreadable between listing and reading), it is silently
+        skipped rather than aborting the whole listing.
+
+        `images_dir` is optional; when omitted (or `None`), it defaults to
+        `bradyforge.config.LABEL_IMAGES_PATH`, so callers don't need to
+        know or pass the real label-images location.
+        """
+        images_dir = (
+            images_dir if images_dir is not None else config.LABEL_IMAGES_PATH
+        )
+
+        results = []
+        for filename in list_label_images(images_dir):
+            full_path = os.path.join(images_dir, filename)
+            _, extension = os.path.splitext(filename)
+            mime = _LABEL_IMAGE_MIME_TYPES.get(
+                extension.lower(), "application/octet-stream"
+            )
+            try:
+                with open(full_path, "rb") as f:
+                    raw_bytes = f.read()
+            except OSError:
+                continue
+            encoded = base64.b64encode(raw_bytes).decode("ascii")
+            data_url = f"data:{mime};base64,{encoded}"
+            results.append({"filename": filename, "data_url": data_url})
+
+        return results
