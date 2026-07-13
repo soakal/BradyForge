@@ -147,9 +147,24 @@ def test_upload_panel_has_no_script_tags():
     assert "<script" not in panel_upload
 
 
-def test_index_html_has_no_script_tags_anywhere():
+def test_index_html_has_exactly_one_external_app_js_script_tag():
+    # Tab-switching JS is wired in via a single external <script src="app.js">
+    # tag; no inline <script>...</script> blocks with embedded JS.
     content = app.HTML_PATH.read_text(encoding="utf-8")
-    assert "<script" not in content
+    script_blocks = re.findall(r"<script\b([^>]*)>(.*?)</script>", content, re.DOTALL)
+    assert len(script_blocks) == 1, f"expected exactly one <script> tag, found {script_blocks!r}"
+    attrs, inline_js = script_blocks[0]
+    assert 'src="app.js"' in attrs
+    assert inline_js.strip() == "", "app.js content must live in the external file, not inline"
+
+
+def test_app_js_script_tag_appears_after_all_panels():
+    content = app.HTML_PATH.read_text(encoding="utf-8")
+    script_pos = content.index('<script src="app.js"')
+    for panel_id in ("panel-generic", "panel-upload", "panel-settings"):
+        panel_content = _extract_panel(content, panel_id)
+        panel_end = content.index(panel_content) + len(panel_content)
+        assert script_pos > panel_end, f"script tag must appear after #{panel_id}"
 
 
 def test_settings_panel_contains_expected_field_ids():
@@ -183,3 +198,33 @@ def test_settings_panel_has_no_script_tags():
     content = app.HTML_PATH.read_text(encoding="utf-8")
     panel_settings = _extract_panel(content, "panel-settings")
     assert "<script" not in panel_settings
+
+
+APP_JS_PATH = app.HTML_PATH.parent / "app.js"
+
+
+def test_app_js_exists():
+    assert APP_JS_PATH.is_file()
+
+
+def test_app_js_references_all_tab_and_panel_ids():
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    for tab_id in ("tab-generic", "tab-upload", "tab-settings"):
+        assert tab_id in content, f"{tab_id!r} missing from app.js"
+    for panel_id in ("panel-generic", "panel-upload", "panel-settings"):
+        assert panel_id in content, f"{panel_id!r} missing from app.js"
+
+
+def test_app_js_has_no_pywebview_api_calls():
+    # Wiring window.pywebview.api is out of scope for this cycle.
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    assert "window.pywebview" not in content
+    assert ".api." not in content
+
+
+def test_app_js_has_balanced_braces():
+    # Not a full JS parser — just a quick sanity heuristic against
+    # obvious syntax errors.
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    assert content.count("{") == content.count("}")
+    assert content.count("(") == content.count(")")
