@@ -410,6 +410,25 @@ def test_app_js_label_picker_has_error_fallback_message():
     assert "Could not load label images." in label_picker_section
 
 
+def test_resolve_webui_dir_uses_meipass_when_frozen(monkeypatch, tmp_path):
+    # When running as a PyInstaller-frozen executable, the webui assets
+    # must be resolved from sys._MEIPASS (the temp extraction dir
+    # PyInstaller sets at runtime), not the source tree.
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    result = app._resolve_webui_dir()
+
+    assert result == tmp_path / "webui"
+
+
+def test_resolve_webui_dir_uses_package_dir_when_not_frozen():
+    # Existing (non-frozen) behavior must be unchanged: resolved relative
+    # to the bradyforge package directory.
+    assert app._resolve_webui_dir() == app.HTML_PATH.parent
+    assert not getattr(sys, "frozen", False)
+
+
 def test_app_js_calls_load_label_images_alongside_load_settings():
     # loadLabelImages() must be invoked in the same page-load
     # initialization context as loadSettings() (i.e. inside the

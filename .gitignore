@@ -5,6 +5,7 @@ venv/
 dist/
 build/
 *.spec
+!BradyForge.spec
 *.log
 .council/state/
 
