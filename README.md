@@ -115,9 +115,7 @@ exist yet — this is a known future step, not yet implemented.
 
 ## Documentation
 
-Two deliverables from `BradyForge-SPEC.md` are planned but not yet present in
-this repo:
-
 - A plain-language **user manual** for non-technical staff filling out the
-  form.
-- A proprietary **LICENSE** for VRSI (internal use only, not open source).
+  form is available in `USER-MANUAL.md`.
+- A proprietary **LICENSE** for VRSI (internal use only, not open source) is
+  available in `LICENSE`.
