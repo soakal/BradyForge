@@ -1,3 +1,4 @@
+import base64
 import io
 import zipfile
 from pathlib import Path
@@ -150,6 +151,70 @@ def test_accept_upload_unreachable_destination_falls_back_to_local_zip(tmp_path)
         names = zf.namelist()
         assert len(names) == 1
         assert zf.read(names[0]) == source_path.read_bytes()
+
+
+def test_accept_upload_bytes_valid_xlsx_copies_file(tmp_path, monkeypatch):
+    fake_temp_dir = tmp_path / "fake_temp"
+    monkeypatch.setattr(
+        "bradyforge.api.tempfile.mkdtemp", lambda: str(fake_temp_dir.mkdir() or fake_temp_dir)
+    )
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    source_bytes = SAMPLE_MULTI_TAB_PATH.read_bytes()
+    encoded = base64.b64encode(source_bytes).decode("ascii")
+
+    api = Api()
+    result = api.accept_upload_bytes("report.xlsx", encoded, str(destination_dir))
+
+    assert result["ok"] is True
+    saved_path = Path(result["saved_path"])
+    assert result["filename"] == "report.xlsx"
+    assert saved_path == destination_dir / "report.xlsx"
+    assert saved_path.exists()
+    assert saved_path.read_bytes() == source_bytes
+    assert not fake_temp_dir.exists()
+
+
+def test_accept_upload_bytes_data_url_prefix_is_stripped(tmp_path):
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    source_bytes = SAMPLE_MULTI_TAB_PATH.read_bytes()
+    encoded = base64.b64encode(source_bytes).decode("ascii")
+    data_url = (
+        "data:application/vnd.openxmlformats-officedocument"
+        ".spreadsheetml.sheet;base64," + encoded
+    )
+
+    api = Api()
+    result = api.accept_upload_bytes("report.xlsx", data_url, str(destination_dir))
+
+    assert result["ok"] is True
+    saved_path = Path(result["saved_path"])
+    assert result["filename"] == "report.xlsx"
+    assert saved_path.exists()
+    assert saved_path.read_bytes() == source_bytes
+
+
+def test_accept_upload_bytes_corrupted_content_returns_error_without_raising(
+    tmp_path, monkeypatch
+):
+    fake_temp_dir = tmp_path / "fake_temp"
+    monkeypatch.setattr(
+        "bradyforge.api.tempfile.mkdtemp", lambda: str(fake_temp_dir.mkdir() or fake_temp_dir)
+    )
+    destination_dir = tmp_path / "destination"
+    destination_dir.mkdir()
+    encoded = base64.b64encode(b"this is plain text, not a zip/xlsx file").decode(
+        "ascii"
+    )
+
+    api = Api()
+    result = api.accept_upload_bytes("not-really.xlsx", encoded, str(destination_dir))
+
+    assert result["ok"] is False
+    assert "error" in result
+    assert list(destination_dir.iterdir()) == []
+    assert not fake_temp_dir.exists()
 
 
 def test_submit_generic_labels_valid_rows_writes_workbook(tmp_path):

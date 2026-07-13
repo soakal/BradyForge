@@ -8,9 +8,11 @@ plain Python and every method must be directly unit-testable as a
 normal method call, without a live webview.
 """
 
+import base64
 import io
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 from bradyforge.fallback_saver import save_local_and_zip
@@ -110,6 +112,34 @@ class Api:
             }
 
         return {"ok": True, "saved_path": str(saved_path), "filename": filename}
+
+    def accept_upload_bytes(self, filename, base64_content, destination_dir):
+        """Base64-transport variant of `accept_upload` for the JS bridge.
+
+        JS reads the uploaded `File` via `FileReader.readAsDataURL()` (or
+        similar) and sends the resulting base64 string across the bridge,
+        since raw binary payloads aren't a natural fit for the JS-to-Python
+        call boundary. This method decodes `base64_content` (stripping a
+        leading `"data:...;base64,"` prefix if present), writes the decoded
+        bytes to a temp file named exactly `filename` (so `accept_upload`'s
+        internal `os.path.basename(source_path)` resolves to the original
+        name), then fully delegates to `accept_upload` for validation,
+        collision-safe copying, and fallback handling. The temp directory is
+        always removed afterward, regardless of whether `accept_upload`
+        succeeds, returns an error, or raises.
+        """
+        if "," in base64_content:
+            _, _, base64_content = base64_content.partition(",")
+        raw_bytes = base64.b64decode(base64_content)
+
+        temp_dir = tempfile.mkdtemp()
+        try:
+            temp_path = os.path.join(temp_dir, filename)
+            with open(temp_path, "wb") as f:
+                f.write(raw_bytes)
+            return self.accept_upload(temp_path, destination_dir)
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     def submit_generic_labels(self, rows, filename, destination_dir):
         """Write generic label `rows` to a new workbook in `destination_dir`.
