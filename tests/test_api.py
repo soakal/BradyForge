@@ -1,3 +1,4 @@
+import zipfile
 from pathlib import Path
 
 import openpyxl
@@ -117,6 +118,37 @@ def test_accept_upload_filename_collision_gets_timestamp_suffix(tmp_path):
     assert saved_path.exists()
     # The pre-existing file must not have been overwritten.
     assert existing_path.read_text() == "existing upload"
+
+
+def test_accept_upload_unreachable_destination_falls_back_to_local_zip(tmp_path):
+    source_path = tmp_path / "source" / "report.xlsx"
+    source_path.parent.mkdir()
+    source_path.write_bytes(SAMPLE_MULTI_TAB_PATH.read_bytes())
+
+    # A file (not a directory) standing in for the destination, so writing
+    # into it as if it were a directory genuinely raises OSError.
+    destination_dir = tmp_path / "destination_is_a_file"
+    destination_dir.write_text("not a directory")
+
+    fallback_dir = tmp_path / "fallback"
+    api = Api(fallback_dir=fallback_dir)
+    result = api.accept_upload(str(source_path), str(destination_dir))
+
+    assert result["ok"] is True
+    assert result["fallback"] is True
+    assert "message" in result
+
+    zip_path = Path(result["zip_path"])
+    assert zip_path.exists()
+
+    local_path = Path(result["local_path"])
+    assert local_path.exists()
+    assert local_path.read_bytes() == source_path.read_bytes()
+
+    with zipfile.ZipFile(zip_path) as zf:
+        names = zf.namelist()
+        assert len(names) == 1
+        assert zf.read(names[0]) == source_path.read_bytes()
 
 
 def test_submit_generic_labels_valid_rows_writes_workbook(tmp_path):

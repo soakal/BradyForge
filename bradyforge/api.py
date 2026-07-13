@@ -12,6 +12,7 @@ import os
 import shutil
 from pathlib import Path
 
+from bradyforge.fallback_saver import save_local_and_zip
 from bradyforge.filename_util import resolve_upload_filename
 from bradyforge.generic_writer import write_generic_workbook
 from bradyforge.settings import load_settings, save_settings
@@ -23,6 +24,11 @@ from bradyforge.xlsx_validator import InvalidXlsxError, validate_xlsx_file
 # `get_settings`/`save_settings` are actually called.
 DEFAULT_SETTINGS_PATH = Path.home() / ".bradyforge" / "settings.json"
 
+# Default per-user location for locally-saved fallback uploads. Never
+# touched at import time or in `Api.__init__` — only created/written
+# lazily when `accept_upload` actually needs to fall back to it.
+DEFAULT_FALLBACK_DIR = Path.home() / ".bradyforge" / "fallback"
+
 
 class Api:
     """Backend API exposed to the JS front end via PyWebView.
@@ -31,9 +37,12 @@ class Api:
     module is built out. This starts with settings-related methods only.
     """
 
-    def __init__(self, settings_path=None):
+    def __init__(self, settings_path=None, fallback_dir=None):
         self.settings_path = (
             settings_path if settings_path is not None else DEFAULT_SETTINGS_PATH
+        )
+        self.fallback_dir = (
+            fallback_dir if fallback_dir is not None else DEFAULT_FALLBACK_DIR
         )
 
     def get_settings(self):
@@ -63,6 +72,15 @@ class Api:
         are caught and returned as `{"ok": False, "error": <message>}` rather
         than propagated, since the future JS bridge can't catch raised Python
         exceptions. Any other unexpected exception propagates normally.
+
+        If `destination_dir` turns out to be unreachable (e.g. an offline
+        network share), the collision-resolve + copy attempt raises
+        `OSError`/`PermissionError`. That is caught here and treated as a
+        fallback case: the source file's bytes are saved locally and zipped
+        via `bradyforge.fallback_saver.save_local_and_zip` (into
+        `self.fallback_dir`), and the result reflects the fallback with
+        `{"ok": True, "fallback": True, "local_path": ..., "zip_path": ...,
+        "message": ...}`.
         """
         try:
             validate_xlsx_file(source_path)
@@ -70,11 +88,25 @@ class Api:
         except (InvalidXlsxError, FileTooLargeError) as exc:
             return {"ok": False, "error": str(exc)}
 
-        filename = resolve_upload_filename(
-            destination_dir, os.path.basename(source_path)
-        )
-        saved_path = os.path.join(destination_dir, filename)
-        shutil.copy2(source_path, saved_path)
+        try:
+            filename = resolve_upload_filename(
+                destination_dir, os.path.basename(source_path)
+            )
+            saved_path = os.path.join(destination_dir, filename)
+            shutil.copy2(source_path, saved_path)
+        except (OSError, PermissionError):
+            filename = os.path.basename(source_path)
+            source_bytes = Path(source_path).read_bytes()
+            fallback_result = save_local_and_zip(
+                source_bytes, filename, self.fallback_dir
+            )
+            return {
+                "ok": True,
+                "fallback": True,
+                "local_path": fallback_result.local_path,
+                "zip_path": fallback_result.zip_path,
+                "message": fallback_result.message,
+            }
 
         return {"ok": True, "saved_path": str(saved_path), "filename": filename}
 
