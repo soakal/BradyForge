@@ -89,6 +89,9 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       filename = filename.trim();
+      if (!/\.xlsx$/i.test(filename)) {
+        filename += ".xlsx";
+      }
 
       setGenericStatus("Saving…");
 

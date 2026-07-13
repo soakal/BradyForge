@@ -370,6 +370,15 @@ def test_app_js_generic_wiring_references_field_ids():
         assert field_id in generic_section, f"{field_id!r} missing from generic wiring section"
 
 
+def test_app_js_generic_wiring_auto_appends_xlsx_extension():
+    # If the user's typed filename doesn't already end in .xlsx, the
+    # Save flow must append it automatically before calling the backend.
+    content = APP_JS_PATH.read_text(encoding="utf-8")
+    generic_section = _extract_generic_wiring_section(content)
+    assert re.search(r"\\\.xlsx\$", generic_section, re.IGNORECASE)
+    assert '+= ".xlsx"' in generic_section or '+ ".xlsx"' in generic_section
+
+
 def _extract_label_picker_wiring_section(content):
     """Return the app.js slice that wires up the live label-image picker.
 
