@@ -151,3 +151,109 @@ body {
 .tab-panel.is-active {
   display: block;
 }
+
+/* Generic form */
+
+.forge-form {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field--full {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  color: var(--color-navy-800);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.form-required {
+  color: var(--color-amber-500);
+  margin-left: 2px;
+}
+
+.form-input {
+  appearance: none;
+  border: 1px solid var(--color-slate-100);
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  color: var(--color-navy-900);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-input::placeholder {
+  color: var(--color-slate-400);
+}
+
+.form-input:focus-visible {
+  outline: none;
+  border-color: var(--color-amber-500);
+  box-shadow: 0 0 0 3px var(--color-amber-100);
+}
+
+.label-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  border: 1px dashed var(--color-slate-100);
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  padding: 20px;
+}
+
+.label-picker-placeholder {
+  color: var(--color-slate-400);
+  font-size: 13px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--color-amber-500);
+  color: var(--color-navy-950);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  background: var(--color-amber-400);
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--color-navy-700);
+  outline-offset: 2px;
+}

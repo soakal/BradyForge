@@ -39,7 +39,45 @@
 
     <main class="app-main">
       <div id="panel-generic" class="tab-panel is-active" role="tabpanel" aria-labelledby="tab-generic">
-        <!-- Generic form fields land here in a future cycle. -->
+        <form class="forge-form" id="generic-form">
+          <div class="form-grid">
+            <div class="form-field">
+              <label class="form-label" for="name">Name<span class="form-required">*</span></label>
+              <input class="form-input" type="text" id="name" name="name" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="department">Department<span class="form-required">*</span></label>
+              <input class="form-input" type="text" id="department" name="department" required />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="line1">Line 1</label>
+              <input class="form-input" type="text" id="line1" name="line1" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="line2">Line2</label>
+              <input class="form-input" type="text" id="line2" name="line2" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="line3">Line3</label>
+              <input class="form-input" type="text" id="line3" name="line3" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="quantity">Quantity</label>
+              <input class="form-input" type="number" id="quantity" name="quantity" min="0" step="1" />
+            </div>
+          </div>
+
+          <div class="form-field form-field--full">
+            <label class="form-label" for="label-picker">Label Type</label>
+            <div class="label-picker" id="label-picker">
+              <span class="label-picker-placeholder">Label types will load here.</span>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" id="save-generic-btn">Save</button>
+          </div>
+        </form>
       </div>
       <div id="panel-upload" class="tab-panel" role="tabpanel" aria-labelledby="tab-upload">
         <!-- Existing-file upload controls land here in a future cycle. -->
